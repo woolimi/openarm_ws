@@ -139,6 +139,7 @@ ros2 launch openarm_leader moveit.launch.py
 | RViz 에 로봇이 안 보인다 | `source install/setup.bash` 를 빼먹었다. 그 터미널에서 실행하고 다시 띄운다 |
 | 슬라이더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
 | 관절 하나가 슬라이더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
+| 컨트롤러 spawner 가 전부 `Failed loading` 이다 | 이전 실행이 남아 controller_manager 가 두 개다. 띄운 창을 모두 끄고 `pgrep -f ros2_control_node` 가 비는지 확인한 뒤 다시 띄운다 |
 
 ## 다음 실습
 
