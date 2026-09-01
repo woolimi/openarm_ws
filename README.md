@@ -103,7 +103,6 @@ source install/setup.bash
 | --- | --- | --- |
 | `source` | `sliders` | `none` 은 팔로워만, `sliders` 는 슬라이더 리더, `feetech` 는 실물 리더암 |
 | `arms` | `left,right` | 대상 팔 |
-| `arm_type` | `v1.0` | OpenArm 모델 |
 | `use_fake_hardware` | `true` | `false` 면 CAN-FD 실기 |
 | `config_file` | 설치된 `leader.yaml` | 설정 파일 경로 |
 | `left_can_interface` | `can1` | 왼팔 CAN 인터페이스 |

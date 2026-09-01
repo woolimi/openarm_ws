@@ -122,10 +122,10 @@ ros2 topic echo /left_forward_position_controller/commands
 
 ## 7단계 — MoveIt 역기구학
 
-5·6단계를 끄고 MoveIt demo 를 띄운다. `arm_type` 기본값이 v2.0 이므로 반드시 지정한다.
+5·6단계를 끄고 MoveIt demo 를 띄운다.
 
 ```bash
-ros2 launch openarm_bimanual_moveit_config demo.launch.py arm_type:=v1.0
+ros2 launch openarm_leader moveit.launch.py
 ```
 
 **확인** — RViz 왼쪽에 MotionPlanning 패널이 있다. `Planning Group` 을 `left_arm` 으로 두고
@@ -139,7 +139,6 @@ ros2 launch openarm_bimanual_moveit_config demo.launch.py arm_type:=v1.0
 | RViz 에 로봇이 안 보인다 | `source install/setup.bash` 를 빼먹었다. 그 터미널에서 실행하고 다시 띄운다 |
 | 슬라이더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
 | 관절 하나가 슬라이더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
-| MoveIt 에서 팔 모양이 다르다 | `arm_type:=v1.0` 을 빠뜨렸다. 기본값이 v2.0 이다 |
 
 ## 다음 실습
 

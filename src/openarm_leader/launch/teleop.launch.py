@@ -22,7 +22,6 @@ LEADER_JOINT_STATES_TOPIC = '/leader/joint_states'
 def generate_launch_description():
     source = LaunchConfiguration('source')
     arms = LaunchConfiguration('arms')
-    arm_type = LaunchConfiguration('arm_type')
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     config_file = LaunchConfiguration('config_file')
     left_can_interface = LaunchConfiguration('left_can_interface')
@@ -39,11 +38,6 @@ def generate_launch_description():
             'arms',
             default_value='left,right',
             description='teleoperation 대상 팔. 쉼표로 구분한다.',
-        ),
-        DeclareLaunchArgument(
-            'arm_type',
-            default_value='v1.0',
-            description='OpenArm 모델. 이 강의는 v1.0 을 쓴다.',
         ),
         DeclareLaunchArgument(
             'use_fake_hardware',
@@ -78,7 +72,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'arm_type': arm_type,
+            'arm_type': 'v1.0',
             'use_fake_hardware': use_fake_hardware,
             'robot_controller': 'forward_position_controller',
             'left_can_interface': left_can_interface,
