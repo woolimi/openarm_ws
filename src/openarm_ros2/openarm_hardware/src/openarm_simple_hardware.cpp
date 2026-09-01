@@ -229,10 +229,35 @@ hardware_interface::CallbackReturn OpenArmHW::on_activate(
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   openarm_->recv_all();
 
-  // Hold the measured pose: command exactly what the arm reports right now.
-  read(rclcpp::Time(0), rclcpp::Duration(0, 0));
-  for (size_t i = 0; i < pos_commands_.size() && i < pos_states_.size(); ++i) {
-    pos_commands_[i] = pos_states_[i];
+  // Wait until real joint states arrive. Commanding before the first
+  // state frames would treat the default zeros as the current pose and
+  // yank the arm.
+  bool got_state = false;
+  for (int attempt = 0; attempt < 50 && !got_state; ++attempt) {
+    openarm_->refresh_all();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    openarm_->recv_all();
+    for (const auto& motor : openarm_->get_arm().get_motors()) {
+      if (motor.get_position() != 0.0) {
+        got_state = true;
+        break;
+      }
+    }
+  }
+  if (!got_state) {
+    RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"),
+                 "No joint states received on %s; check CAN bus and power",
+                 can_interface_.c_str());
+    return CallbackReturn::ERROR;
+  }
+
+  // Walk slowly to the zero pose, then keep commanding it.
+  return_to_zero();
+  for (size_t i = 0; i < ARM_DOF && i < pos_commands_.size(); ++i) {
+    pos_commands_[i] = ZERO_POSITION[i];
+  }
+  if (hand_ && pos_commands_.size() > ARM_DOF) {
+    pos_commands_[ARM_DOF] = GRIPPER_JOINT_0_POSITION;
   }
 
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "OpenArm V10 activated");
@@ -306,6 +331,49 @@ hardware_interface::return_type OpenArmHW::write(
   return hardware_interface::return_type::OK;
 }
 
+void OpenArmHW::return_to_zero() {
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "Returning to zero position...");
+
+  const auto& arm_motors = openarm_->get_arm().get_motors();
+  std::vector<double> start_pos(ARM_DOF, 0.0);
+  for (size_t i = 0; i < ARM_DOF && i < arm_motors.size(); ++i) {
+    start_pos[i] = arm_motors[i].get_position();
+  }
+
+  // Cap the joint speed so a distant starting pose still homes slowly.
+  const double max_speed = 0.5;  // rad/s
+  const int step_ms = 10;
+  double max_dist = 0.0;
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    max_dist = std::max(max_dist, std::abs(ZERO_POSITION[i] - start_pos[i]));
+  }
+  const int steps = std::max(
+      200,
+      static_cast<int>(std::ceil(max_dist / max_speed * 1000.0 / step_ms)));
+
+  for (int step = 0; step <= steps; ++step) {
+    double t = static_cast<double>(step) / steps;
+
+    std::vector<openarm::damiao_motor::MITParam> arm_params;
+    for (size_t i = 0; i < ARM_DOF; ++i) {
+      double target = start_pos[i] + t * (ZERO_POSITION[i] - start_pos[i]);
+      arm_params.push_back({kp_[i], kd_[i], target, 0.0, 0.0});
+    }
+    openarm_->get_arm().mit_control_all(arm_params);
+
+    if (hand_) {
+      openarm_->get_gripper().mit_control_all(
+          {{gripper_kp_, gripper_kd_,
+            joint_to_motor_radians(GRIPPER_JOINT_0_POSITION), 0.0, 0.0}});
+    }
+
+    openarm_->recv_all();
+    std::this_thread::sleep_for(std::chrono::milliseconds(step_ms));
+  }
+
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "Reached zero position");
+}
+
 double OpenArmHW::joint_to_motor_radians(double joint_value) {
   if (ee_type_ == "pinch_gripper") {
     // revolute: joint 0-1.5708 rad -> motor 0-1.5708
@@ -325,20 +393,6 @@ double OpenArmHW::motor_radians_to_joint(double motor_radians) {
     return GRIPPER_JOINT_0_POSITION * (motor_radians / GRIPPER_MOTOR_1_RADIANS);
   }
 }
-
-// // Gripper mapping helper functions
-// double OpenArmHW::joint_to_motor_radians(double joint_value) {
-//   // Joint 0=closed -> motor 0 rad, Joint 0.044=open -> motor -1.0472 rad
-//   return (joint_value / GRIPPER_JOINT_0_POSITION) *
-//          GRIPPER_MOTOR_1_RADIANS;  // Scale from 0-0.044 to 0 to -1.0472
-// }
-
-// double OpenArmHW::motor_radians_to_joint(double motor_radians) {
-//   // Motor 0 rad=closed -> joint 0, Motor -1.0472 rad=open -> joint 0.044
-//   return GRIPPER_JOINT_0_POSITION *
-//          (motor_radians /
-//           GRIPPER_MOTOR_1_RADIANS);  // Scale from 0 to -1.0472 to 0-0.044
-// }
 
 }  // namespace openarm_hardware
 
