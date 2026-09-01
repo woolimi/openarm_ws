@@ -27,6 +27,7 @@ setup(
             'calibrate = openarm_leader.calibrate:main',
             'check = openarm_leader.check:main',
             'register = openarm_leader.register:main',
+            'udev = openarm_leader.udev:main',
         ],
     },
 )

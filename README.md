@@ -55,6 +55,7 @@ source install/setup.bash
 
 | 명령 | 용도 |
 | --- | --- |
+| `ros2 run openarm_leader udev` | 보드 고정 장치 이름(udev rule) 등록 |
 | `ros2 run openarm_leader register` | 서보 id 스캔·배정 |
 | `ros2 run openarm_leader check` | 서보 응답 확인, 관절 매핑 실시간 표시 |
 | `ros2 run openarm_leader calibrate` | 영점·그리퍼 범위 캘리브레이션 |
