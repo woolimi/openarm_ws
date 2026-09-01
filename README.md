@@ -95,7 +95,8 @@ source install/setup.bash
 | `source` | `sliders` | `none`, `sliders`, `feetech` |
 | `arms` | `left,right` | 대상 팔, 쉼표 구분 |
 | `rate_hz` | `30.0` | 명령 발행 주기 |
-| `ramp_sec` | `2.0` | 시작 보간 시간 |
+| `ramp_sec` | `2.0` | 시작 보간 시간 (팔 관절만) |
+| `gripper_smoothing_alpha` | `0.25` | 그리퍼 low-pass 계수, 1 이면 필터 없음 |
 | `leader_joint_states_topic` | `/leader/joint_states` | 리더 입력 토픽 |
 | `follower_joint_states_topic` | `/joint_states` | 팔로워 상태 토픽 |
 | `left_port`, `right_port` | `/dev/ttyUSB0`, `/dev/ttyUSB1` | 리더암 시리얼 포트 |
@@ -122,7 +123,7 @@ teleop 설정의 단일 진실 공급원이다. 환경변수는 쓰지 않는다
 
 | 항목 | 내용 |
 | --- | --- |
-| `source`, `active_arms`, `rate_hz`, `ramp_sec` | 노드 파라미터 기본값 |
+| `source`, `active_arms`, `rate_hz`, `ramp_sec`, `gripper_smoothing_alpha` | 노드 파라미터 기본값 |
 | `gripper_travel` | 팔로워 finger 관절 이동 범위 [m] |
 | `feetech` | 리더 버스 baudrate, protocol_end, tick 해상도, present position 주소 |
 | `arms.<arm>.joint_limits_deg` | 팔로워 관절 clamp 범위 [deg] |

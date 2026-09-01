@@ -67,6 +67,7 @@ class ArmChannel:
 
         self.start_arm = None
         self.ramp_start_ns = None
+        self.gripper_filtered = None
 
 
 class SliderSource:
@@ -159,6 +160,8 @@ class LeaderNode(Node):
         self.declare_parameter('rate_hz', float(cfg['rate_hz']))
         self.declare_parameter('ramp_sec', float(cfg['ramp_sec']))
         self.declare_parameter(
+            'gripper_smoothing_alpha', float(cfg['gripper_smoothing_alpha']))
+        self.declare_parameter(
             'leader_joint_states_topic', str(cfg['leader_joint_states_topic']))
         self.declare_parameter(
             'follower_joint_states_topic', str(cfg['follower_joint_states_topic']))
@@ -167,6 +170,8 @@ class LeaderNode(Node):
 
         source_name = self.get_parameter('source').value
         self._ramp_sec = float(self.get_parameter('ramp_sec').value)
+        self._gripper_alpha = mapping.clamp(
+            float(self.get_parameter('gripper_smoothing_alpha').value), 0.0, 1.0)
         rate_hz = float(self.get_parameter('rate_hz').value)
         arms = [name.strip() for name in
                 self.get_parameter('arms').value.split(',') if name.strip()]
@@ -248,8 +253,13 @@ class LeaderNode(Node):
             mapping.blend(start, target, alpha)
             for start, target in zip(channel.start_arm, positions)
         ]
-        # 그리퍼는 시작 보간 없이 리더를 바로 따른다.
-        gripper_command = gripper
+        # 그리퍼는 시작 보간 없이 리더를 따르되, low-pass 로 손떨림을 걸러낸다.
+        if channel.gripper_filtered is None:
+            channel.gripper_filtered = gripper
+        else:
+            channel.gripper_filtered = mapping.blend(
+                channel.gripper_filtered, gripper, self._gripper_alpha)
+        gripper_command = channel.gripper_filtered
 
         channel.arm_publisher.publish(Float64MultiArray(data=arm_command))
 

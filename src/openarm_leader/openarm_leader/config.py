@@ -20,6 +20,7 @@ REQUIRED_KEYS = (
     'active_arms',
     'rate_hz',
     'ramp_sec',
+    'gripper_smoothing_alpha',
     'leader_joint_states_topic',
     'follower_joint_states_topic',
     'gripper_travel',

@@ -155,3 +155,4 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech
 | `check` 에서 일부 서보가 응답 없음 | 배선과 id 배정을 확인한다. 버스 스캔은 `register` 다 |
 | 리더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
 | 관절 하나가 리더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
+| 그리퍼가 중간 위치에서 잘게 떤다 | 리더를 쥔 손의 떨림이 전달되는 것이다. `leader.yaml` 의 `gripper_smoothing_alpha` 를 낮춰 더 세게 거른다 |
