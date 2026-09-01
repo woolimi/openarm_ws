@@ -16,13 +16,14 @@ READ_PERIOD_SEC = 0.1
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='check',
-        description='리더암 모터 체크. 서보 응답을 확인한 뒤 관절값을 실시간으로 보여준다.')
+        description='리더암 모터 체크. 모든 팔의 서보 응답을 확인한 뒤 '
+                    '관절값을 실시간으로 보여준다.')
     parser.add_argument(
-        '--arm', required=True,
-        help='확인할 팔 이름 (leader.yaml 의 arms 키)')
+        '--arm',
+        help='이 팔 하나만 확인한다. 생략하면 모든 팔을 한 번에 확인한다.')
     parser.add_argument(
         '--port',
-        help='리더암 시리얼 포트. 생략하면 leader.yaml 값을 쓴다.')
+        help='leader.yaml 대신 쓸 시리얼 포트. --arm 과 함께 쓴다.')
     parser.add_argument(
         '--config',
         help='읽을 leader.yaml 경로. 생략하면 설치본을 쓴다.')
@@ -38,7 +39,42 @@ def joint_label(index):
     return 'gripper'
 
 
-def render_rows(ticks, leader_cfg, feetech_cfg, gripper_travel):
+def open_arm(arm, cfg, port_override):
+    """한 팔의 버스를 연다. 실패하면 안내를 찍고 None."""
+    leader_cfg = cfg['arms'][arm]['leader']
+    port = port_override or leader_cfg['port']
+    feetech_cfg = cfg['feetech']
+    ids = [int(value) for value in leader_cfg['ids']]
+    print(f'{arm}: 포트 {port}, 서보 id {ids}')
+    try:
+        bus = FeetechBus(
+            port,
+            int(feetech_cfg['baudrate']),
+            int(feetech_cfg['protocol_end']),
+            int(feetech_cfg['present_position_address']),
+        )
+    except RuntimeError as error:
+        print(f'  {error}')
+        return None
+    return {'arm': arm, 'bus': bus, 'ids': ids, 'leader_cfg': leader_cfg}
+
+
+def ping_arm(entry):
+    """서보별 응답을 찍고 무응답 id 목록을 돌려준다."""
+    arm = entry['arm']
+    missing = []
+    for index, servo_id in enumerate(entry['ids']):
+        model = entry['bus'].ping(servo_id)
+        if model is None:
+            missing.append(servo_id)
+            print(f'  {arm:5s} {joint_label(index):8s} id {servo_id:2d}  응답 없음')
+        else:
+            print(f'  {arm:5s} {joint_label(index):8s} id {servo_id:2d}  '
+                  f'응답 (모델 {model})')
+    return missing
+
+
+def render_rows(arm, ticks, leader_cfg, feetech_cfg, gripper_travel):
     """현재 tick 을 관절별 표시 문자열 목록으로 바꾼다."""
     ticks_per_rev = int(feetech_cfg['ticks_per_rev'])
     rows = []
@@ -50,7 +86,7 @@ def render_rows(ticks, leader_cfg, feetech_cfg, gripper_travel):
             ticks_per_rev,
         )
         rows.append(
-            f'{joint_label(index):8s} id {leader_cfg["ids"][index]:2d}  '
+            f'{arm:5s} {joint_label(index):8s} id {leader_cfg["ids"][index]:2d}  '
             f'{ticks[index]:4d} tick  {math.degrees(rad):+7.1f} deg')
     open_ticks = float(leader_cfg['gripper_ticks']['open'])
     closed_ticks = float(leader_cfg['gripper_ticks']['closed'])
@@ -60,21 +96,26 @@ def render_rows(ticks, leader_cfg, feetech_cfg, gripper_travel):
     span = float(gripper_travel['open']) - float(gripper_travel['closed'])
     percent = 100.0 * (value - float(gripper_travel['closed'])) / span if span else 0.0
     rows.append(
-        f'{joint_label(ARM_JOINT_COUNT):8s} id {leader_cfg["ids"][ARM_JOINT_COUNT]:2d}  '
+        f'{arm:5s} {joint_label(ARM_JOINT_COUNT):8s} id '
+        f'{leader_cfg["ids"][ARM_JOINT_COUNT]:2d}  '
         f'{ticks[ARM_JOINT_COUNT]:4d} tick  {percent:5.1f} % 열림')
     return rows
 
 
-def live_view(bus, ids, leader_cfg, feetech_cfg, gripper_travel):
+def live_view(entries, feetech_cfg, gripper_travel):
     print('\n관절을 하나씩 움직여 자리·방향이 맞는지 확인하라. 종료는 Ctrl+C.')
     printed = 0
     try:
         while True:
-            ticks = bus.read_positions(ids)
-            if ticks is None:
-                rows = ['읽기 실패 — 배선을 확인하라.']
-            else:
-                rows = render_rows(ticks, leader_cfg, feetech_cfg, gripper_travel)
+            rows = []
+            for entry in entries:
+                ticks = entry['bus'].read_positions(entry['ids'])
+                if ticks is None:
+                    rows.append(f'{entry["arm"]:5s} 읽기 실패 — 배선을 확인하라.')
+                else:
+                    rows.extend(render_rows(
+                        entry['arm'], ticks, entry['leader_cfg'],
+                        feetech_cfg, gripper_travel))
             if printed:
                 sys.stdout.write(f'\x1b[{printed}A')
             for row in rows:
@@ -88,42 +129,44 @@ def live_view(bus, ids, leader_cfg, feetech_cfg, gripper_travel):
 
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.port and not args.arm:
+        sys.exit('--port 는 --arm 과 함께 쓴다.')
+
     cfg = config_io.load(args.config)
+    arms = [args.arm] if args.arm else list(cfg['arms'])
+    unknown = [arm for arm in arms if arm not in cfg['arms']]
+    if unknown:
+        sys.exit(f'설정에 없는 팔: {unknown} (가능: {sorted(cfg["arms"])})')
 
-    if args.arm not in cfg['arms']:
-        sys.exit(f'설정에 없는 팔: {args.arm} (가능: {sorted(cfg["arms"])})')
+    entries = [
+        entry for entry in
+        (open_arm(arm, cfg, args.port) for arm in arms)
+        if entry is not None
+    ]
+    if not entries:
+        sys.exit('열 수 있는 리더 포트가 없다.')
 
-    leader_cfg = cfg['arms'][args.arm]['leader']
-    ids = [int(value) for value in leader_cfg['ids']]
-    port = args.port or leader_cfg['port']
-    feetech_cfg = cfg['feetech']
-
-    print(f'포트 {port}, 서보 id {ids}')
     try:
-        bus = FeetechBus(
-            port,
-            int(feetech_cfg['baudrate']),
-            int(feetech_cfg['protocol_end']),
-            int(feetech_cfg['present_position_address']),
-        )
-    except RuntimeError as error:
-        sys.exit(str(error))
-    try:
-        missing = []
-        for index, servo_id in enumerate(ids):
-            model = bus.ping(servo_id)
-            if model is None:
-                missing.append(servo_id)
-                print(f'  {joint_label(index):8s} id {servo_id:2d}  응답 없음')
+        healthy = []
+        failed = False
+        for entry in entries:
+            missing = ping_arm(entry)
+            if missing:
+                failed = True
+                print(f'  {entry["arm"]}: 서보 {missing} 가 응답하지 않는다. '
+                      '배선을 확인하고, id 배정은 register 로 한다.')
             else:
-                print(f'  {joint_label(index):8s} id {servo_id:2d}  응답 (모델 {model})')
-        if missing:
-            sys.exit(f'서보 {missing} 가 응답하지 않는다. '
-                     '배선을 확인하고, id 배정은 register 로 한다.')
-        if not args.once:
-            live_view(bus, ids, leader_cfg, feetech_cfg, cfg['gripper_travel'])
+                healthy.append(entry)
+        if len(entries) < len(arms):
+            failed = True
+
+        if not args.once and healthy:
+            live_view(healthy, cfg['feetech'], cfg['gripper_travel'])
+        if failed or not healthy:
+            sys.exit(1)
     finally:
-        bus.close()
+        for entry in entries:
+            entry['bus'].close()
 
 
 if __name__ == '__main__':
