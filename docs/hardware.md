@@ -89,24 +89,7 @@ source install/setup.bash
 python3 -c "import rclpy, scservo_sdk; print('ok')"
 ```
 
-## 6단계 — 리더 서보 id 등록
-
-리더암을 새로 조립했거나 서보를 교체한 경우에만 하는 단계다. 서보는 공장 출하 시 모두 id 1 이라,
-조립 전에 서보를 **하나씩** 버스에 연결해 id 를 배정한다. 배정표는 `config/leader.yaml` 의
-`ids` 를 따른다 — joint1 부터 차례로 1~5, joint6 은 **7**, joint7 은 **6**, 그리퍼는 8 이다.
-
-서보 하나만 연결한 상태에서 실행한다.
-
-```bash
-ros2 run openarm_leader register --port /dev/ttyUSB0 --id 3
-```
-
-인자 없이 실행하면 버스를 스캔만 한다. 버스에 서보가 여러 개면 `--from` 으로 바꿀 서보의 현재
-id 를 지정한다.
-
-**확인** — `id 1 → 3 변경 완료.` 가 나오고, 다시 스캔하면 새 id 로 응답한다.
-
-## 7단계 — 리더 모터 체크
+## 6단계 — 리더 모터 체크
 
 조립을 마친 리더암의 서보 응답과 관절 매핑을 양팔 한 번에 확인한다.
 
@@ -122,9 +105,9 @@ ros2 run openarm_leader check
 
 **확인** — 양팔 모두 id 8개가 응답하고, 움직인 관절과 화면에서 변하는 관절이 일치한다.
 
-관절이 어긋나면 서보 id 배정(6단계)을, 방향이 반대면 `config/leader.yaml` 의 `signs` 를 본다.
+관절이 어긋나면 서보 id 배정을 `register` 로 확인하고, 방향이 반대면 `config/leader.yaml` 의 `signs` 를 본다.
 
-## 8단계 — 리더 캘리브레이션
+## 7단계 — 리더 캘리브레이션
 
 리더 서보의 영점과 그리퍼 범위를 잡아 `config/leader.yaml` 에 기록한다. 양팔을 차례로
 이어서 진행한다.
@@ -144,7 +127,7 @@ Enter 를 누르면 다음 팔로 넘어간다. 영점 자세는 팔로워의 �
 
 관절 방향이 반대로 도는 서보는 같은 파일의 `signs` 를 `1` 과 `-1` 사이에서 뒤집어 맞춘다.
 
-## 9단계 — 실기 teleop
+## 8단계 — 실기 teleop
 
 ```bash
 ros2 launch openarm_leader teleop.launch.py source:=feetech use_fake_hardware:=false arms:=left
@@ -161,6 +144,6 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech use_fake_hardware:=f
 | `scservo_sdk 를 찾지 못했다` | Feetech SDK 를 설치한다 (5단계) |
 | `could not open port /dev/ttyUSB0` | 포트 번호와 `dialout` 그룹을 확인한다 (3단계) |
 | `/dev/openarm_leader_*` 가 안 생긴다 | udev 규칙은 다시 꽂을 때 적용된다. 보드를 뽑았다 다시 꽂는다 (4단계) |
-| `check` 에서 일부 서보가 응답 없음 | 배선 순서·id 배정을 확인한다 (6단계) |
+| `check` 에서 일부 서보가 응답 없음 | 배선과 id 배정을 확인한다. 버스 스캔은 `register` 다 |
 | 리더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
 | 관절 하나가 리더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
