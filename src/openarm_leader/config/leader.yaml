@@ -41,7 +41,7 @@ arms:
       joint6: [-40.0, 40.0]
       joint7: [-80.0, 80.0]
     leader:
-      port: /dev/ttyUSB0
+      port: /dev/openarm_leader_left
       # 팔로워 관절 순서(joint1..joint7, gripper)로 적은 리더 서보 id.
       # 리더 6·7번 서보가 팔로워 joint7·joint6 에 걸려 있어 그 두 자리가 뒤집혀 있다.
       ids: [1, 2, 3, 4, 5, 7, 6, 8]
@@ -60,7 +60,7 @@ arms:
       joint6: [-40.0, 40.0]
       joint7: [-80.0, 80.0]
     leader:
-      port: /dev/ttyUSB1
+      port: /dev/openarm_leader_right
       ids: [1, 2, 3, 4, 5, 7, 6, 8]
       signs: [-1, -1, -1, -1, -1, -1, 1, 1]
       offset_ticks: [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]
