@@ -3,8 +3,9 @@
 Feetech 리더암으로 OpenArm v1.0 을 teleoperation 하고 MoveIt 역기구학을 다루는 ROS 2 workspace.
 
 이 리포의 자작 패키지는 팔로워 bringup 인 `openarm_follower`, 리더 입력을 팔로워 컨트롤러
-명령으로 옮기는 `openarm_leader`, MoveIt demo 조립인 `openarm_moveit` 셋이고, 팔로워
-제어·시뮬레이션·MoveIt 은 Enactic 업스트림 스택을 그대로 쓴다.
+명령으로 옮기는 `openarm_leader`, MoveIt demo 조립인 `openarm_moveit` 셋이다. 팔로워 제어
+스택 `openarm_ros2` 는 Enactic 원본을 리포에 내장해 쓰고, 로봇 모델(`openarm_description`)과
+CAN 라이브러리(`openarm_can`)는 업스트림에서 받는다.
 
 ## 실행 환경
 
@@ -37,11 +38,12 @@ source install/setup.bash
 | 경로 | 내용 |
 | --- | --- |
 | `docs/` | 단계별 실습 문서 |
-| `openarm.repos` | 업스트림 3개 리포의 커밋 고정 |
+| `openarm.repos` | 업스트림 2개 리포의 커밋 고정 |
 | `src/openarm_follower/` | 팔로워 bringup launch |
 | `src/openarm_leader/` | 리더 relay 노드, teleop launch, 셋업 CLI |
 | `src/openarm_moveit/` | MoveIt demo launch 와 관절 한계 |
-| `src/openarm_ros2/`, `src/openarm_description/`, `src/openarm_can/` | 실습 2단계에서 내려받는 업스트림 소스 |
+| `src/openarm_ros2/` | 내장한 Enactic 팔로워 제어·MoveIt 스택 |
+| `src/openarm_description/`, `src/openarm_can/` | 실습 2단계에서 내려받는 업스트림 소스 |
 
 ## 실습 문서
 
@@ -136,4 +138,4 @@ teleop 설정의 단일 진실 공급원이다. 환경변수는 쓰지 않는다
 
 ## 라이선스
 
-Apache-2.0. 업스트림 `openarm_ros2`, `openarm_description`, `openarm_can` 은 각 리포의 라이선스를 따른다.
+Apache-2.0. 내장한 `openarm_ros2` 와 업스트림 `openarm_description`·`openarm_can` 은 Enactic 의 Apache-2.0 을 따른다.

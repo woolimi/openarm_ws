@@ -17,8 +17,8 @@ unzip openarm_ws.zip -d ~
 cd ~/openarm_ws
 ```
 
-**확인** — `ls` 결과에 `openarm.repos`, `README.md`, `src` 가 보인다. `src` 안에는 아직
-`openarm_leader` 하나뿐이다.
+**확인** — `ls` 결과에 `openarm.repos`, `README.md`, `src` 가 보인다. `src` 안에는 이 리포의
+패키지들과 팔로워 제어 스택 `openarm_ros2` 가 들어 있다.
 
 > git 으로 받는 경우에도 이후 단계는 같다. `git clone <repo> ~/openarm_ws` 로 받은 뒤 2단계부터 진행한다.
 
@@ -30,16 +30,16 @@ cd ~/openarm_ws
 sudo apt install python3-vcstool
 ```
 
-`openarm.repos` 에 적힌 커밋으로 3개 리포를 `src/` 에 받는다.
+`openarm.repos` 에 적힌 커밋으로 2개 리포를 `src/` 에 받는다.
 
 ```bash
 vcs import src < openarm.repos
 ```
 
-**확인** — `ls src` 에 네 디렉터리가 보인다.
+**확인** — `ls src` 에 여섯 디렉터리가 보인다.
 
 ```
-openarm_can  openarm_description  openarm_leader  openarm_ros2
+openarm_can  openarm_description  openarm_follower  openarm_leader  openarm_moveit  openarm_ros2
 ```
 
 ## 3단계 — 의존성 설치
