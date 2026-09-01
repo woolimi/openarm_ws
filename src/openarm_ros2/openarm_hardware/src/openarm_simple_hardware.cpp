@@ -232,11 +232,18 @@ hardware_interface::CallbackReturn OpenArmHW::on_activate(
   // Wait until real joint states arrive. Commanding before the first
   // state frames would treat the default zeros as the current pose and
   // yank the arm.
+  // The motors report state in response to commands, so probe with a
+  // zero-gain, zero-torque MIT command that moves nothing.
   bool got_state = false;
-  for (int attempt = 0; attempt < 50 && !got_state; ++attempt) {
-    openarm_->refresh_all();
+  const std::vector<openarm::damiao_motor::MITParam> probe(
+      ARM_DOF, openarm::damiao_motor::MITParam{0.0, 0.0, 0.0, 0.0, 0.0});
+  for (int attempt = 0; attempt < 200 && !got_state; ++attempt) {
+    openarm_->get_arm().mit_control_all(probe);
+    if (hand_) {
+      openarm_->get_gripper().mit_control_all({{0.0, 0.0, 0.0, 0.0, 0.0}});
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    openarm_->recv_all();
+    openarm_->recv_all(1000);
     for (const auto& motor : openarm_->get_arm().get_motors()) {
       if (motor.get_position() != 0.0) {
         got_state = true;
@@ -246,7 +253,8 @@ hardware_interface::CallbackReturn OpenArmHW::on_activate(
   }
   if (!got_state) {
     RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"),
-                 "No joint states received on %s; check CAN bus and power",
+                 "No joint states received on %s within 2 s; "
+                 "check CAN bus and power",
                  can_interface_.c_str());
     return CallbackReturn::ERROR;
   }
@@ -257,7 +265,7 @@ hardware_interface::CallbackReturn OpenArmHW::on_activate(
     pos_commands_[i] = ZERO_POSITION[i];
   }
   if (hand_ && pos_commands_.size() > ARM_DOF) {
-    pos_commands_[ARM_DOF] = GRIPPER_JOINT_0_POSITION;
+    pos_commands_[ARM_DOF] = GRIPPER_JOINT_1_POSITION;  // closed
   }
 
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "OpenArm V10 activated");
@@ -340,10 +348,17 @@ void OpenArmHW::return_to_zero() {
     start_pos[i] = arm_motors[i].get_position();
   }
 
+  // The gripper homes to closed, interpolated in motor radians.
+  double gripper_start = 0.0;
+  const double gripper_target = joint_to_motor_radians(GRIPPER_JOINT_1_POSITION);
+  if (hand_ && !openarm_->get_gripper().get_motors().empty()) {
+    gripper_start = openarm_->get_gripper().get_motors()[0].get_position();
+  }
+
   // Cap the joint speed so a distant starting pose still homes slowly.
   const double max_speed = 0.5;  // rad/s
   const int step_ms = 10;
-  double max_dist = 0.0;
+  double max_dist = std::abs(gripper_target - gripper_start);
   for (size_t i = 0; i < ARM_DOF; ++i) {
     max_dist = std::max(max_dist, std::abs(ZERO_POSITION[i] - start_pos[i]));
   }
@@ -362,9 +377,9 @@ void OpenArmHW::return_to_zero() {
     openarm_->get_arm().mit_control_all(arm_params);
 
     if (hand_) {
+      double gripper_pos = gripper_start + t * (gripper_target - gripper_start);
       openarm_->get_gripper().mit_control_all(
-          {{gripper_kp_, gripper_kd_,
-            joint_to_motor_radians(GRIPPER_JOINT_0_POSITION), 0.0, 0.0}});
+          {{gripper_kp_, gripper_kd_, gripper_pos, 0.0, 0.0}});
     }
 
     openarm_->recv_all();
