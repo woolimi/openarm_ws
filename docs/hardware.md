@@ -149,18 +149,19 @@ ros2 run openarm_leader check
 
 ## 9단계 — 리더 캘리브레이션
 
-리더 서보의 영점과 그리퍼 범위를 잡아 `config/leader.yaml` 에 기록한다.
+리더 서보의 영점과 그리퍼 범위를 잡아 `config/leader.yaml` 에 기록한다. 양팔을 차례로
+이어서 진행한다.
 
 ```bash
-ros2 run openarm_leader calibrate --arm left
+ros2 run openarm_leader calibrate
 ```
 
-안내에 따라 리더암을 영점 자세로 두고 Enter, 그리퍼를 끝까지 열고 Enter, 끝까지 닫고 Enter 를
-누른다. 영점 자세는 팔로워의 영점과 같은 자세다 — 팔로워를 3단계 영점 자세로 두고 리더암을
-그 모양에 맞춘다.
+안내에 따라 그 팔의 리더암을 영점 자세로 두고 Enter, 그리퍼를 끝까지 열고 Enter, 끝까지 닫고
+Enter 를 누르면 다음 팔로 넘어간다. 영점 자세는 팔로워의 영점과 같은 자세다 — 팔로워를 3단계
+영점 자세로 두고 리더암을 그 모양에 맞춘다. 한 팔만 다시 잡으려면 `--arm left` 처럼 지정한다.
 
-**확인** — `offset_ticks`, `gripper open`, `gripper closed` 값이 화면에 찍히고 마지막 줄에
-기록한 파일 경로가 나온다. `config/leader.yaml` 의 `arms.left.leader` 항목이 그 값으로 바뀐다.
+**확인** — 팔마다 `offset_ticks`, `gripper open`, `gripper closed` 값이 찍히고 기록한 파일
+경로가 나온다. `config/leader.yaml` 의 `arms.<arm>.leader` 항목이 그 값으로 바뀐다.
 
 캘리브레이션이 파일을 다시 쓰면서 `leader.yaml` 의 주석은 사라진다. 값은 모두 유지된다.
 
