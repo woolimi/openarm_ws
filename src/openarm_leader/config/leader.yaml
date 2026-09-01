@@ -1,0 +1,69 @@
+# 리더암 teleoperation 설정. teleop 동작에 필요한 모든 값의 단일 진실 공급원이다.
+# arms.<arm>.leader 아래 값은 `ros2 run openarm_leader calibrate` 가 갱신한다.
+
+# 리더 입력 소스. none = 팔로워만 띄운다, sliders = joint_state_publisher_gui, feetech = 실제 리더암
+source: sliders
+# teleop 대상 팔
+active_arms:
+- left
+- right
+# 명령 발행 주기 [Hz]
+rate_hz: 30.0
+# 시작 시 팔로워 현재 자세에서 리더 자세로 넘어가는 보간 시간 [s]
+ramp_sec: 2.0
+
+# 리더 입력 토픽 (sliders 모드에서 joint_state_publisher_gui 가 발행)
+leader_joint_states_topic: /leader/joint_states
+# 팔로워 상태 토픽 (joint_state_broadcaster 가 발행). ramping 시작점으로 쓴다.
+follower_joint_states_topic: /joint_states
+
+# 팔로워 gripper 관절(openarm_<arm>_finger_joint1) 의 이동 범위 [m]
+gripper_travel:
+  closed: 0.0
+  open: 0.044
+
+# Feetech STS3215 버스 설정
+feetech:
+  baudrate: 1000000
+  protocol_end: 0
+  ticks_per_rev: 4096
+  present_position_address: 56
+
+arms:
+  left:
+    # 팔로워 관절 한계 [deg]. 리더 입력을 이 범위로 clamp 한다.
+    joint_limits_deg:
+      joint1: [-75.0, 75.0]
+      joint2: [-90.0, 9.0]
+      joint3: [-85.0, 85.0]
+      joint4: [0.0, 135.0]
+      joint5: [-85.0, 85.0]
+      joint6: [-40.0, 40.0]
+      joint7: [-80.0, 80.0]
+    leader:
+      port: /dev/ttyUSB0
+      # 팔로워 관절 순서(joint1..joint7, gripper)로 적은 리더 서보 id.
+      # 리더 6·7번 서보가 팔로워 joint7·joint6 에 걸려 있어 그 두 자리가 뒤집혀 있다.
+      ids: [1, 2, 3, 4, 5, 7, 6, 8]
+      signs: [-1, 1, -1, -1, -1, -1, -1, 1]
+      offset_ticks: [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]
+      gripper_ticks:
+        open: 3072
+        closed: 2048
+  right:
+    joint_limits_deg:
+      joint1: [-75.0, 75.0]
+      joint2: [-9.0, 90.0]
+      joint3: [-85.0, 85.0]
+      joint4: [0.0, 135.0]
+      joint5: [-85.0, 85.0]
+      joint6: [-40.0, 40.0]
+      joint7: [-80.0, 80.0]
+    leader:
+      port: /dev/ttyUSB1
+      ids: [1, 2, 3, 4, 5, 7, 6, 8]
+      signs: [-1, -1, -1, -1, -1, -1, 1, 1]
+      offset_ticks: [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]
+      gripper_ticks:
+        open: 3072
+        closed: 2048
