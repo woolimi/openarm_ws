@@ -31,6 +31,8 @@ openarm-can-cli -i can1 discover
 **확인** — id 1~8 이 모두 응답으로 나온다. 빠진 id 가 있으면 그 모터의 배선·전원을 확인한다.
 
 모터 상태는 실시간으로도 볼 수 있다. 손으로 관절을 움직이면 해당 id 의 위치값이 변한다.
+기본 6초 뒤 스스로 끝나고, 더 길게 보려면 `-d 60000` 처럼 ms 로 준다. 도는 동안 모터가
+enable(토크 ON)됐다가 끝날 때 disarm 된다.
 
 ```bash
 openarm-can-cli -i can1 monitor
