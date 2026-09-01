@@ -12,16 +12,16 @@ ARM_JOINT_COUNT = 7
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='calibrate',
-        description='Feetech 리더암 캘리브레이션. 모든 팔을 차례로 진행한다.')
+        description='Feetech 리더암 캘리브레이션. 모든 팔을 차례로 진행합니다.')
     parser.add_argument(
         '--arm',
-        help='이 팔 하나만 캘리브레이션한다. 생략하면 모든 팔을 이어서 한다.')
+        help='이 팔 하나만 캘리브레이션합니다. 생략하면 모든 팔을 이어서 합니다.')
     parser.add_argument(
         '--port',
-        help='leader.yaml 대신 쓸 시리얼 포트. --arm 과 함께 쓴다.')
+        help='leader.yaml 대신 쓸 시리얼 포트. --arm 과 함께 씁니다.')
     parser.add_argument(
         '--config',
-        help='읽고 쓸 leader.yaml 경로. 생략하면 설치본을 쓴다.')
+        help='읽고 쓸 leader.yaml 경로. 생략하면 설치본을 씁니다.')
     return parser.parse_args(argv)
 
 
@@ -33,7 +33,7 @@ def prompt(message):
 def read_or_exit(bus, ids, what):
     ticks = bus.read_positions(ids)
     if ticks is None:
-        sys.exit(f'{what} 읽기에 실패했다. 배선·id·baudrate 를 확인하라.')
+        sys.exit(f'{what} 읽기에 실패했습니다. 배선·id·baudrate 를 확인해 주세요.')
     return ticks
 
 
@@ -60,16 +60,16 @@ def calibrate_arm(arm, bus, cfg, path, port_override):
     leader_cfg = cfg['arms'][arm]['leader']
     ids = [int(value) for value in leader_cfg['ids']]
 
-    prompt(f'{arm} 리더암을 영점 자세로 두어라')
+    prompt(f'{arm} 리더암을 영점 자세로 맞춰 주세요')
     offsets = read_or_exit(bus, ids, f'{arm} 영점 자세')
     print(f'  {arm} offset_ticks = {offsets}')
 
     gripper_id = ids[ARM_JOINT_COUNT]
-    prompt(f'{arm} 그리퍼를 끝까지 열어라')
+    prompt(f'{arm} 그리퍼를 끝까지 열어 주세요')
     open_ticks = read_or_exit(bus, [gripper_id], f'{arm} 그리퍼 열림')[0]
     print(f'  {arm} gripper open = {open_ticks}')
 
-    prompt(f'{arm} 그리퍼를 끝까지 닫아라')
+    prompt(f'{arm} 그리퍼를 끝까지 닫아 주세요')
     closed_ticks = read_or_exit(bus, [gripper_id], f'{arm} 그리퍼 닫힘')[0]
     print(f'  {arm} gripper closed = {closed_ticks}')
 
@@ -81,13 +81,13 @@ def calibrate_arm(arm, bus, cfg, path, port_override):
         'closed': int(closed_ticks),
     }
     config_io.save(cfg, path)
-    print(f'  {arm} 캘리브레이션을 {path} 에 기록했다.')
+    print(f'  {arm} 캘리브레이션을 {path} 에 기록했습니다.')
 
 
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     if args.port and not args.arm:
-        sys.exit('--port 는 --arm 과 함께 쓴다.')
+        sys.exit('--port 는 --arm 과 함께 쓰세요.')
 
     path = args.config or config_io.default_path()
     cfg = config_io.load(path)
@@ -109,7 +109,7 @@ def main(argv=None):
             bus.close()
 
     if skipped:
-        sys.exit(f'{skipped} 는 포트를 못 열어 건너뛰었다.')
+        sys.exit(f'{skipped} 는 포트를 못 열어 건너뛰었습니다.')
 
 
 if __name__ == '__main__':

@@ -19,17 +19,17 @@ ENUMERATION_WAIT_SEC = 1.0
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='udev',
-        description='리더 보드에 /dev/openarm_leader_<arm> 고정 이름을 배정한다. '
-                    '안내에 따라 보드를 하나씩 꽂으면 새 포트를 자동 인식한다.')
+        description='리더 보드에 /dev/openarm_leader_<arm> 고정 이름을 배정합니다. '
+                    '안내에 따라 보드를 하나씩 꽂으면 새 포트를 자동 인식합니다.')
     parser.add_argument(
         '--arm',
-        help='이 팔 하나만 다시 등록한다. 생략하면 모든 팔을 차례로 등록한다.')
+        help='이 팔 하나만 다시 등록합니다. 생략하면 모든 팔을 차례로 등록합니다.')
     parser.add_argument(
         '--port',
-        help='자동 인식 대신 이 포트를 쓴다. --arm 과 함께 쓴다.')
+        help='자동 인식 대신 이 포트를 씁니다. --arm 과 함께 씁니다.')
     parser.add_argument(
         '--config',
-        help='갱신할 leader.yaml 경로. 생략하면 설치본을 쓴다.')
+        help='갱신할 leader.yaml 경로. 생략하면 설치본을 씁니다.')
     return parser.parse_args(argv)
 
 
@@ -126,7 +126,7 @@ def install(content):
 def attributes_or_exit(port):
     attrs = usb_attributes(port)
     if attrs is None or not attrs['idVendor']:
-        sys.exit(f'{port} 의 USB 속성을 찾지 못했다. USB 어댑터 포트가 맞는지 확인하라.')
+        sys.exit(f'{port} 의 USB 속성을 찾지 못했습니다. USB 어댑터 포트가 맞는지 확인해 주세요.')
     return attrs
 
 
@@ -141,9 +141,9 @@ def detect_new_port(baseline):
     time.sleep(ENUMERATION_WAIT_SEC)
     new_ports = sorted(list_ttys() - baseline)
     if not new_ports:
-        sys.exit('새 포트가 안 보인다. 보드를 꽂았는지 확인하고 다시 실행하라.')
+        sys.exit('새 포트가 보이지 않습니다. 보드를 꽂았는지 확인하고 다시 실행해 주세요.')
     if len(new_ports) > 1:
-        sys.exit(f'새 포트가 여러 개다 {new_ports}. 보드를 하나씩 꽂아라.')
+        sys.exit(f'새 포트가 여러 개입니다 {new_ports}. 보드를 하나씩 꽂아 주세요.')
     return new_ports[0]
 
 
@@ -151,15 +151,15 @@ def collect_ports(arms, manual_port):
     """팔별로 보드를 꽂게 해 (포트, 어댑터 속성) 을 모은다."""
     if manual_port is not None:
         if not os.path.exists(manual_port):
-            sys.exit(f'{manual_port} 가 없다. 보드가 꽂혀 있는지 확인하라.')
+            sys.exit(f'{manual_port} 가 없습니다. 보드가 꽂혀 있는지 확인해 주세요.')
         arm = arms[0]
         return {arm: (manual_port, attributes_or_exit(manual_port))}
 
-    prompt('리더 보드를 모두 뽑아라')
+    prompt('리더 보드를 모두 뽑아 주세요')
     baseline = list_ttys()
     collected = {}
     for arm in arms:
-        prompt(f'{arm} 보드를 꽂아라')
+        prompt(f'{arm} 보드를 꽂아 주세요')
         port = detect_new_port(baseline)
         collected[arm] = (port, attributes_or_exit(port))
         describe(arm, port, collected[arm][1])
@@ -170,7 +170,7 @@ def collect_ports(arms, manual_port):
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     if args.port and not args.arm:
-        sys.exit('--port 는 --arm 과 함께 쓴다.')
+        sys.exit('--port 는 --arm 과 함께 쓰세요.')
 
     path = args.config or config_io.default_path()
     cfg = config_io.load(path)
@@ -187,8 +187,8 @@ def main(argv=None):
     fallbacks = {arm: attrs['kernels'] for arm, attrs in attributes.items()
                  if not attrs['serial']}
     if len(fallbacks) > 1 and len(set(fallbacks.values())) < len(fallbacks):
-        sys.exit('어댑터에 serial 이 없고 같은 USB 포트를 썼다. '
-                 '좌우를 구분할 수 없으니 서로 다른 포트에 꽂아 다시 실행하라.')
+        sys.exit('어댑터에 serial 이 없고 같은 USB 포트를 썼습니다. '
+                 '좌우를 구분할 수 없으니 서로 다른 포트에 꽂아 다시 실행해 주세요.')
 
     content = read_rules_file()
     rules = {arm: build_rule(arm, attrs) for arm, attrs in attributes.items()}
@@ -198,19 +198,19 @@ def main(argv=None):
     print(f'\n{RULES_PATH} 에 들어갈 규칙:')
     for rule in rules.values():
         print(f'  {rule}')
-    prompt('sudo 로 등록한다')
+    prompt('sudo 로 등록합니다')
 
     try:
         install(content)
     except subprocess.CalledProcessError as error:
-        sys.exit(f'규칙 설치에 실패했다: {error}')
+        sys.exit(f'규칙 설치에 실패했습니다: {error}')
 
     for arm in rules:
         cfg['arms'][arm]['leader']['port'] = f'/dev/{SYMLINK_PREFIX}{arm}'
     config_io.save(cfg, path)
 
-    print('\n등록 완료. leader.yaml 의 port 를 고정 이름으로 바꿨다.')
-    print('보드를 뽑았다 다시 꽂은 뒤 고정 이름을 확인하라:')
+    print('\n등록 완료. leader.yaml 의 port 를 고정 이름으로 바꿨습니다.')
+    print('보드를 뽑았다 다시 꽂은 뒤 고정 이름을 확인해 주세요:')
     for arm in rules:
         print(f'  ls -l /dev/{SYMLINK_PREFIX}{arm}')
 

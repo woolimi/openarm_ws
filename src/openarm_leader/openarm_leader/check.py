@@ -17,19 +17,19 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='check',
         description='리더암 모터 체크. 모든 팔의 서보 응답을 확인한 뒤 '
-                    '관절값을 실시간으로 보여준다.')
+                    '관절값을 실시간으로 보여줍니다.')
     parser.add_argument(
         '--arm',
-        help='이 팔 하나만 확인한다. 생략하면 모든 팔을 한 번에 확인한다.')
+        help='이 팔 하나만 확인합니다. 생략하면 모든 팔을 한 번에 확인합니다.')
     parser.add_argument(
         '--port',
-        help='leader.yaml 대신 쓸 시리얼 포트. --arm 과 함께 쓴다.')
+        help='leader.yaml 대신 쓸 시리얼 포트. --arm 과 함께 씁니다.')
     parser.add_argument(
         '--config',
-        help='읽을 leader.yaml 경로. 생략하면 설치본을 쓴다.')
+        help='읽을 leader.yaml 경로. 생략하면 설치본을 씁니다.')
     parser.add_argument(
         '--once', action='store_true',
-        help='응답 확인만 하고 실시간 표시는 건너뛴다.')
+        help='응답 확인만 하고 실시간 표시는 건너뜁니다.')
     return parser.parse_args(argv)
 
 
@@ -103,7 +103,7 @@ def render_rows(arm, ticks, leader_cfg, feetech_cfg, gripper_travel):
 
 
 def live_view(entries, feetech_cfg, gripper_travel):
-    print('\n관절을 하나씩 움직여 자리·방향이 맞는지 확인하라. 종료는 Ctrl+C.')
+    print('\n관절을 하나씩 움직여 자리·방향이 맞는지 확인해 보세요. 종료는 Ctrl+C.')
     printed = 0
     try:
         while True:
@@ -111,7 +111,7 @@ def live_view(entries, feetech_cfg, gripper_travel):
             for entry in entries:
                 ticks = entry['bus'].read_positions(entry['ids'])
                 if ticks is None:
-                    rows.append(f'{entry["arm"]:5s} 읽기 실패 — 배선을 확인하라.')
+                    rows.append(f'{entry["arm"]:5s} 읽기 실패 — 배선을 확인해 주세요.')
                 else:
                     rows.extend(render_rows(
                         entry['arm'], ticks, entry['leader_cfg'],
@@ -130,7 +130,7 @@ def live_view(entries, feetech_cfg, gripper_travel):
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     if args.port and not args.arm:
-        sys.exit('--port 는 --arm 과 함께 쓴다.')
+        sys.exit('--port 는 --arm 과 함께 쓰세요.')
 
     cfg = config_io.load(args.config)
     arms = [args.arm] if args.arm else list(cfg['arms'])
@@ -144,7 +144,7 @@ def main(argv=None):
         if entry is not None
     ]
     if not entries:
-        sys.exit('열 수 있는 리더 포트가 없다.')
+        sys.exit('열 수 있는 리더 포트가 없습니다.')
 
     try:
         healthy = []
@@ -153,8 +153,8 @@ def main(argv=None):
             missing = ping_arm(entry)
             if missing:
                 failed = True
-                print(f'  {entry["arm"]}: 서보 {missing} 가 응답하지 않는다. '
-                      '배선을 확인하고, id 배정은 register 로 한다.')
+                print(f'  {entry["arm"]}: 서보 {missing} 가 응답하지 않습니다. '
+                      '배선을 확인하고, id 배정은 register 로 해 주세요.')
             else:
                 healthy.append(entry)
         if len(entries) < len(arms):

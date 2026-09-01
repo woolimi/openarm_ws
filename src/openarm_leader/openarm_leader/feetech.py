@@ -15,8 +15,8 @@ class FeetechBus:
                 COMM_SUCCESS, GroupSyncRead, PacketHandler, PortHandler)
         except ImportError as error:
             raise RuntimeError(
-                'scservo_sdk 를 찾지 못했다. python3 -m pip install --user '
-                '--break-system-packages feetech-servo-sdk 로 설치하라.'
+                'scservo_sdk 를 찾지 못했습니다. python3 -m pip install --user '
+                '--break-system-packages feetech-servo-sdk 로 설치해 주세요.'
             ) from error
 
         self._comm_success = COMM_SUCCESS
@@ -28,12 +28,12 @@ class FeetechBus:
             self._port = PortHandler(port)
             opened = self._port.openPort()
         except OSError as error:
-            raise RuntimeError(f'{port}: 포트를 열지 못했다 ({error})') from error
+            raise RuntimeError(f'{port}: 포트를 열지 못했습니다 ({error})') from error
         if not opened:
-            raise RuntimeError(f'{port}: 포트를 열지 못했다.')
+            raise RuntimeError(f'{port}: 포트를 열지 못했습니다.')
         if not self._port.setBaudRate(baudrate):
             self._port.closePort()
-            raise RuntimeError(f'{port}: baudrate {baudrate} 설정에 실패했다.')
+            raise RuntimeError(f'{port}: baudrate {baudrate} 설정에 실패했습니다.')
         self._packet = PacketHandler(protocol_end)
         self._group = None
         self._group_ids = None
