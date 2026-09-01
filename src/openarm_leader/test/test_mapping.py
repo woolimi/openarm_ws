@@ -68,3 +68,11 @@ def test_limits_from_degrees_converts_and_orders():
         {'joint1': [-90.0, 90.0], 'joint2': [0.0, 135.0]}, ('joint1', 'joint2'))
     assert limits[0] == pytest.approx((-math.pi / 2, math.pi / 2))
     assert limits[1] == pytest.approx((0.0, math.radians(135.0)))
+
+
+def test_ramp_duration_extends_for_distance():
+    assert mapping.ramp_duration([0.0], [0.5], 2.0, 0.5) == 2.0
+    assert mapping.ramp_duration([0.0], [2.0], 2.0, 0.5) == pytest.approx(4.0)
+    assert mapping.ramp_duration([0.0, 0.0], [0.1, -3.0], 2.0, 0.5) == pytest.approx(6.0)
+    assert mapping.ramp_duration([], [], 2.0, 0.5) == 2.0
+    assert mapping.ramp_duration([0.0], [9.0], 2.0, 0.0) == 2.0

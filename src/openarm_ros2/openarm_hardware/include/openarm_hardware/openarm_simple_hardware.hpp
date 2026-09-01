@@ -135,18 +135,7 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   std::vector<double> vel_states_;
   std::vector<double> tau_states_;
 
-  static constexpr std::array<double, ARM_DOF> ZERO_POSITION = {
-      0.0,  // joint1
-      0.0,  // joint2
-      0.0,  // joint3
-      0.0,  // joint4
-      0.0,  // joint5
-      0.0,  // joint6
-      0.0,  // joint7
-  };
-
   // Helper methods
-  void return_to_zero();
   bool parse_config(const hardware_interface::HardwareInfo& info);
   void generate_joint_names();
 

@@ -19,6 +19,8 @@ from openarm_leader import mapping
 from openarm_leader.feetech import FeetechBus
 
 ARM_JOINT_COUNT = 7
+#: 시작 보간에서 관절이 넘지 않을 속도 [rad/s]. 리더가 멀리 있으면 보간 시간이 늘어난다.
+RAMP_MAX_SPEED = 0.5
 JOINT_KEYS = tuple(f'joint{index}' for index in range(1, ARM_JOINT_COUNT + 1))
 
 
@@ -67,6 +69,7 @@ class ArmChannel:
 
         self.start_arm = None
         self.ramp_start_ns = None
+        self.ramp_sec = None
         self.gripper_filtered = None
 
 
@@ -246,9 +249,11 @@ class LeaderNode(Node):
                 return
             channel.start_arm = start[0]
             channel.ramp_start_ns = now_ns
+            channel.ramp_sec = mapping.ramp_duration(
+                channel.start_arm, positions, self._ramp_sec, RAMP_MAX_SPEED)
 
         alpha = mapping.ramp_alpha(
-            (now_ns - channel.ramp_start_ns) / 1e9, self._ramp_sec)
+            (now_ns - channel.ramp_start_ns) / 1e9, channel.ramp_sec)
         arm_command = [
             mapping.blend(start, target, alpha)
             for start, target in zip(channel.start_arm, positions)

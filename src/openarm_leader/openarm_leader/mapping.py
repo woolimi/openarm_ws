@@ -35,6 +35,14 @@ def gripper_ticks_to_rad(ticks, open_ticks, closed_ticks, open_value, closed_val
     return closed_value + ratio * (open_value - closed_value)
 
 
+def ramp_duration(start, target, base_sec, max_speed):
+    """보간 시간을 정한다. 최속 관절이 max_speed [rad/s] 를 넘지 않게 늘린다."""
+    if max_speed <= 0.0:
+        return base_sec
+    max_dist = max((abs(t - s) for s, t in zip(start, target)), default=0.0)
+    return max(base_sec, max_dist / max_speed)
+
+
 def ramp_alpha(elapsed_sec, ramp_sec):
     """보간 계수. 0 이면 팔로워 시작 자세, 1 이면 리더 자세."""
     if ramp_sec <= 0.0:
