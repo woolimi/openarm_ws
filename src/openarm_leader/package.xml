@@ -18,8 +18,6 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>
-  <exec_depend>openarm_bringup</exec_depend>
-  <exec_depend>openarm_description</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

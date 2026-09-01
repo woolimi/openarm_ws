@@ -83,7 +83,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-**확인** — `Summary: 8 packages finished` 가 나오고, 아래 명령이 두 모듈을 모두 찾는다.
+**확인** — `Summary: 9 packages finished` 가 나오고, 아래 명령이 두 모듈을 모두 찾는다.
 
 ```bash
 python3 -c "import rclpy, scservo_sdk; print('ok')"
@@ -129,8 +129,16 @@ Enter 를 누르면 다음 팔로 넘어간다. 영점 자세는 팔로워의 �
 
 ## 8단계 — 실기 teleop
 
+팔로워를 실기로 띄운다.
+
 ```bash
-ros2 launch openarm_leader teleop.launch.py source:=feetech hardware:=real
+ros2 launch openarm_follower launch.py hardware:=real
+```
+
+새 터미널에서 리더 relay 를 띄운다.
+
+```bash
+ros2 launch openarm_leader teleop.launch.py source:=feetech
 ```
 
 **확인** — 리더암을 움직이면 실물 팔로워가 따라온다. 처음 2초는 팔로워 현재 자세에서 리더 자세로

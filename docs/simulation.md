@@ -73,15 +73,15 @@ colcon build --symlink-install --packages-ignore openarm_hardware openarm
 source install/setup.bash
 ```
 
-**확인** — 빌드 요약에 `Summary: 6 packages finished` 가 나오고 실패 패키지가 없다.
+**확인** — 빌드 요약에 `Summary: 7 packages finished` 가 나오고 실패 패키지가 없다.
 
 ## 5단계 — 시뮬레이션 bringup
 
-mock hardware 팔로워와 RViz 를 띄운다. teleop·MoveIt launch 는 시작할 때 이전 실행이 남긴
+mock hardware 팔로워와 RViz 를 띄운다. follower·MoveIt launch 는 시작할 때 이전 실행이 남긴
 세션 프로세스(ros2_control·RViz 등)를 먼저 정리하므로, 창을 덜 닫고 다시 띄워도 겹치지 않는다.
 
 ```bash
-ros2 launch openarm_leader teleop.launch.py source:=none
+ros2 launch openarm_follower launch.py
 ```
 
 **확인** — RViz 창에 양팔 OpenArm 이 보인다. 새 터미널에서 아래를 실행하면 컨트롤러 다섯 개가
@@ -101,7 +101,7 @@ right_gripper_controller           joint_trajectory_controller/JointTrajectoryCo
 
 ## 6단계 — 슬라이더 teleop
 
-`source` 인자를 `sliders` 로 바꾸면 5단계 구성에 슬라이더 창과 relay 노드가 더 붙는다.
+5단계 팔로워를 켜둔 채, 새 터미널에서 teleop 을 띄우면 슬라이더 창과 relay 노드가 더 붙는다.
 슬라이더가 리더암 역할을 한다.
 
 ```bash
@@ -138,7 +138,7 @@ ros2 launch openarm_moveit launch.py
 | 증상 | 원인과 조치 |
 | --- | --- |
 | RViz 에 로봇이 안 보인다 | `source install/setup.bash` 를 빼먹었다. 그 터미널에서 실행하고 다시 띄운다 |
-| 슬라이더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
+| 슬라이더를 움직여도 팔로워가 그대로다 | 팔로워 bringup(5단계)이 떠 있는지 보고, `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
 | 관절 하나가 슬라이더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
 | 컨트롤러 spawner 가 전부 `Failed loading` 이다 | controller_manager 가 두 개다. launch 가 시작할 때 이전 세션을 정리하므로 한 번 껐다 다시 띄운다 |
 

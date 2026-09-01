@@ -33,7 +33,7 @@ XACRO_MAPPINGS = {
 def cleanup_previous_session(_context):
     stale = stale_processes.kill_stale()
     if stale:
-        print(f'이전 실행이 남긴 세션 프로세스를 정리했다: {stale}')
+        print(f'이전 실행이 남긴 세션 프로세스를 정리했습니다: {stale}')
     return []
 
 

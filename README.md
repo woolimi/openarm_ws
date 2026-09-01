@@ -2,9 +2,9 @@
 
 Feetech 리더암으로 OpenArm v1.0 을 teleoperation 하고 MoveIt 역기구학을 다루는 ROS 2 workspace.
 
-이 리포의 자작 패키지는 리더 입력을 팔로워 컨트롤러 명령으로 옮기는 `openarm_leader` 와
-MoveIt demo 조립인 `openarm_moveit` 둘이고, 팔로워 제어·시뮬레이션·MoveIt 은 Enactic
-업스트림 스택을 그대로 쓴다.
+이 리포의 자작 패키지는 팔로워 bringup 인 `openarm_follower`, 리더 입력을 팔로워 컨트롤러
+명령으로 옮기는 `openarm_leader`, MoveIt demo 조립인 `openarm_moveit` 셋이고, 팔로워
+제어·시뮬레이션·MoveIt 은 Enactic 업스트림 스택을 그대로 쓴다.
 
 ## 실행 환경
 
@@ -38,6 +38,7 @@ source install/setup.bash
 | --- | --- |
 | `docs/` | 단계별 실습 문서 |
 | `openarm.repos` | 업스트림 3개 리포의 커밋 고정 |
+| `src/openarm_follower/` | 팔로워 bringup launch |
 | `src/openarm_leader/` | 리더 relay 노드, teleop launch, 셋업 CLI |
 | `src/openarm_moveit/` | MoveIt demo launch 와 관절 한계 |
 | `src/openarm_ros2/`, `src/openarm_description/`, `src/openarm_can/` | 실습 2단계에서 내려받는 업스트림 소스 |
@@ -103,10 +104,15 @@ source install/setup.bash
 
 | 인자 | 기본값 | 내용 |
 | --- | --- | --- |
-| `source` | `sliders` | `none` 은 팔로워만, `sliders` 는 슬라이더 리더, `feetech` 는 실물 리더암 |
+| `source` | `sliders` | `sliders` 는 슬라이더 리더, `feetech` 는 실물 리더암 |
 | `arms` | `left,right` | 대상 팔 |
-| `hardware` | `sim` | `sim` 은 mock hardware, `real` 은 CAN-FD 실기 |
 | `config_file` | 설치된 `leader.yaml` | 설정 파일 경로 |
+
+### openarm_follower launch.py 인자
+
+| 인자 | 기본값 | 내용 |
+| --- | --- | --- |
+| `hardware` | `sim` | `sim` 은 mock hardware, `real` 은 CAN-FD 실기 |
 | `left_can_interface` | `can1` | 왼팔 CAN 인터페이스 |
 | `right_can_interface` | `can0` | 오른팔 CAN 인터페이스 |
 
