@@ -1,9 +1,5 @@
-# Enactic 업스트림 스택. 여기 적힌 커밋은 OpenArm v1.0 강의 실습에서 검증된 조합이다.
+# Enactic 업스트림 리포. 여기 적힌 커밋은 OpenArm v1.0 강의 실습에서 검증된 조합이다.
 repositories:
-  openarm_ros2:
-    type: git
-    url: https://github.com/enactic/openarm_ros2.git
-    version: 4e837e1d0dae692ff67b560b69d8d281d7a8d4ed
   openarm_description:
     type: git
     url: https://github.com/enactic/openarm_description.git

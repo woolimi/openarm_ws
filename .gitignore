@@ -4,7 +4,6 @@ install/
 log/
 
 # vcs import 로 받아오는 업스트림 소스
-/src/openarm_ros2/
 /src/openarm_description/
 /src/openarm_can/
 
