@@ -20,7 +20,7 @@ cd ~/openarm_ws
 **확인** — `ls` 결과에 `openarm.repos`, `README.md`, `src` 가 보인다. `src` 안에는 아직
 `openarm_leader` 하나뿐이다.
 
-> git 으로 받는 경우에도 이후 단계는 같다. `git clone https://github.com/woolimi/openarm_ws.git ~/openarm_ws` 로 받은 뒤 2단계부터 진행한다.
+> git 으로 받는 경우에도 이후 단계는 같다. `git clone <repo> ~/openarm_ws` 로 받은 뒤 2단계부터 진행한다.
 
 ## 2단계 — 업스트림 소스 확보
 

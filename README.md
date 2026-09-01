@@ -12,14 +12,10 @@ Feetech 리더암으로 OpenArm v1.0 을 teleoperation 하고 MoveIt 역기구�
 
 ## 초기 세팅
 
-배포 zip 또는 git 으로 workspace 를 받는다. 두 경우 모두 `~/openarm_ws` 가 workspace 루트다.
+배포받은 zip 을 홈 디렉터리에 푼다. 풀린 `~/openarm_ws` 가 workspace 루트다.
 
 ```bash
 unzip openarm_ws.zip -d ~
-```
-
-```bash
-git clone https://github.com/woolimi/openarm_ws.git ~/openarm_ws
 ```
 
 업스트림 소스를 받아 시뮬레이션용으로 빌드한다. 단계별 설명과 확인 항목은
