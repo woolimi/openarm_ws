@@ -19,6 +19,8 @@ from launch_ros.actions import Node
 
 from moveit_configs_utils import MoveItConfigsBuilder
 
+from openarm_leader import stale_processes
+
 CONFIG_DIR = 'openarm_v1.0'
 XACRO_MAPPINGS = {
     'arm_type': 'v1.0',
@@ -26,6 +28,13 @@ XACRO_MAPPINGS = {
     'use_fake_hardware': 'true',
     'ros2_control': 'true',
 }
+
+
+def cleanup_previous_session(_context):
+    stale = stale_processes.kill_stale()
+    if stale:
+        print(f'이전 실행이 남긴 세션 프로세스를 정리했다: {stale}')
+    return []
 
 
 def moveit_nodes(_context):
@@ -125,6 +134,7 @@ def generate_launch_description():
                    '-c', '/controller_manager'],
     )
     return LaunchDescription([
+        OpaqueFunction(function=cleanup_previous_session),
         OpaqueFunction(function=moveit_nodes),
         TimerAction(period=2.0, actions=[jsb_spawner]),
         TimerAction(period=1.0, actions=[arm_spawner]),

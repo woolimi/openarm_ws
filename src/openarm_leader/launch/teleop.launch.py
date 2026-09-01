@@ -7,7 +7,8 @@ source 인자 하나로 실습 단계를 넘긴다.
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction)
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -16,7 +17,16 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+from openarm_leader import stale_processes
+
 LEADER_JOINT_STATES_TOPIC = '/leader/joint_states'
+
+
+def cleanup_previous_session(_context):
+    stale = stale_processes.kill_stale()
+    if stale:
+        print(f'이전 실행이 남긴 세션 프로세스를 정리했다: {stale}')
+    return []
 
 
 def generate_launch_description():
@@ -103,4 +113,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        declared_arguments + [follower_bringup, slider_leader, leader_node])
+        declared_arguments
+        + [OpaqueFunction(function=cleanup_previous_session),
+           follower_bringup, slider_leader, leader_node])
