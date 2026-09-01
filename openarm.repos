@@ -1,4 +1,3 @@
-# Enactic 업스트림 리포. 여기 적힌 커밋은 OpenArm v1.0 강의 실습에서 검증된 조합이다.
 repositories:
   openarm_description:
     type: git
