@@ -106,7 +106,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-**확인** — `Summary: 7 packages finished` 가 나오고, 아래 명령이 두 모듈을 모두 찾는다.
+**확인** — `Summary: 8 packages finished` 가 나오고, 아래 명령이 두 모듈을 모두 찾는다.
 
 ```bash
 python3 -c "import rclpy, scservo_sdk; print('ok')"

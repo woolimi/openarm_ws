@@ -41,7 +41,7 @@ def moveit_nodes(_context):
     description_path = get_package_share_directory('openarm_description')
     moveit_path = get_package_share_directory('openarm_bimanual_moveit_config')
     bringup_path = get_package_share_directory('openarm_bringup')
-    leader_path = get_package_share_directory('openarm_leader')
+    demo_path = get_package_share_directory('openarm_moveit')
 
     xacro_path = os.path.join(
         description_path, 'assets', 'robot', CONFIG_DIR,
@@ -76,7 +76,7 @@ def moveit_nodes(_context):
             file_path=f'config/{CONFIG_DIR}/kinematics.yaml')
         .joint_limits(
             file_path=os.path.join(
-                leader_path, 'config', 'moveit_joint_limits.yaml'))
+                demo_path, 'config', 'moveit_joint_limits.yaml'))
         .trajectory_execution(
             file_path=f'config/{CONFIG_DIR}/moveit_controllers.yaml')
         .planning_pipelines(

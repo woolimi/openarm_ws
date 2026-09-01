@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>openarm_moveit</name>
+  <version>0.1.0</version>
+  <description>OpenArm v1.0 MoveIt demo 조립 — 업스트림 moveit config 에 acceleration 한계를 채운 joint_limits 를 얹는다.</description>
+  <maintainer email="woolim@pinklab.art">Woolim Park</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>openarm_leader</exec_depend>
+  <exec_depend>openarm_bimanual_moveit_config</exec_depend>
+  <exec_depend>openarm_bringup</exec_depend>
+  <exec_depend>openarm_description</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

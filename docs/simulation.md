@@ -73,7 +73,7 @@ colcon build --symlink-install --packages-ignore openarm_hardware openarm
 source install/setup.bash
 ```
 
-**확인** — 빌드 요약에 `Summary: 5 packages finished` 가 나오고 실패 패키지가 없다.
+**확인** — 빌드 요약에 `Summary: 6 packages finished` 가 나오고 실패 패키지가 없다.
 
 ## 5단계 — 시뮬레이션 bringup
 
@@ -126,7 +126,7 @@ ros2 topic echo /left_forward_position_controller/commands
 5·6단계를 끄고 MoveIt demo 를 띄운다.
 
 ```bash
-ros2 launch openarm_leader moveit.launch.py
+ros2 launch openarm_moveit demo.launch.py
 ```
 
 **확인** — RViz 왼쪽에 MotionPlanning 패널이 있다. `Planning Group` 을 `left_arm` 으로 두고
