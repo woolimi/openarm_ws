@@ -15,7 +15,8 @@ class FeetechBus:
                 COMM_SUCCESS, GroupSyncRead, PacketHandler, PortHandler)
         except ImportError as error:
             raise RuntimeError(
-                'scservo_sdk 를 찾지 못했다. venv 를 켠 채로 colcon 을 다시 빌드하라.'
+                'scservo_sdk 를 찾지 못했다. python3 -m pip install --user '
+                '--break-system-packages feetech-servo-sdk 로 설치하라.'
             ) from error
 
         self._comm_success = COMM_SUCCESS

@@ -83,26 +83,23 @@ USB 포트 위치로 고정되므로, 그때는 보드를 늘 같은 포트에 �
 
 ## 6단계 — Feetech SDK 설치
 
-시스템 파이썬을 그대로 보는 venv 를 만든다.
+pip 를 설치하고, 리더 서보와 통신하는 파이썬 SDK 를 사용자 영역(`~/.local`)에 넣는다.
+Ubuntu 24.04 는 시스템 파이썬에 대한 pip 설치를 막으므로 `--break-system-packages` 를 붙인다
+(사용자 홈에만 설치되고 시스템 패키지는 건드리지 않는다).
 
 ```bash
-python3 -m venv --system-site-packages ~/venv/openarm
+sudo apt install python3-pip
 ```
 
 ```bash
-source ~/venv/openarm/bin/activate
+python3 -m pip install --user --break-system-packages feetech-servo-sdk
 ```
 
-```bash
-pip install feetech-servo-sdk
-```
-
-`ros2 run` 은 설치된 실행 스크립트의 shebang 인터프리터로 노드를 띄운다. venv 의 파이썬이 그
-자리에 박히도록 venv 를 켠 채로, venv 의 파이썬으로 colcon 을 불러 전체 패키지를 다시 빌드한다.
-이번에는 `openarm_hardware` 도 함께 빌드한다.
+시뮬레이션 빌드에서 뺐던 실기 전용 패키지(`openarm_hardware` 와 metapackage `openarm`)를
+마저 빌드한다.
 
 ```bash
-python3 -m colcon build --symlink-install
+colcon build --symlink-install
 ```
 
 ```bash
@@ -134,19 +131,19 @@ id 를 지정한다.
 
 ## 8단계 — 리더 모터 체크
 
-조립을 마친 리더암의 서보 응답과 관절 매핑을 확인한다.
+조립을 마친 리더암의 서보 응답과 관절 매핑을 양팔 한 번에 확인한다.
 
 ```bash
-ros2 run openarm_leader check --arm left
+ros2 run openarm_leader check
 ```
 
-포트는 `config/leader.yaml` 의 값(5단계에서 고정 이름으로 바뀜)을 쓴다. 5단계를 건너뛰었으면
-`--port /dev/ttyUSB0` 처럼 지정한다.
+포트는 `config/leader.yaml` 의 값(5단계에서 고정 이름으로 바뀜)을 쓴다. 한 팔만 보려면
+`--arm left`, 포트를 직접 주려면 `--arm left --port /dev/ttyUSB0` 처럼 지정한다.
 
-id 8개의 응답을 확인한 뒤 관절별 위치를 실시간으로 보여준다. 관절을 하나씩 손으로 움직여
-화면의 해당 관절 값만 변하는지, 방향이 `+` 로 갈 관절이 `+` 로 가는지 본다. 종료는 Ctrl+C.
+팔마다 id 8개의 응답을 확인한 뒤 관절별 위치를 실시간으로 보여준다. 관절을 하나씩 손으로
+움직여 화면의 해당 관절 값만 변하는지, 방향이 `+` 로 갈 관절이 `+` 로 가는지 본다. 종료는 Ctrl+C.
 
-**확인** — id 8개가 모두 응답하고, 움직인 관절과 화면에서 변하는 관절이 일치한다.
+**확인** — 양팔 모두 id 8개가 응답하고, 움직인 관절과 화면에서 변하는 관절이 일치한다.
 
 관절이 어긋나면 서보 id 배정(7단계)을, 방향이 반대면 `config/leader.yaml` 의 `signs` 를 본다.
 
@@ -183,7 +180,7 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech use_fake_hardware:=f
 | 증상 | 원인과 조치 |
 | --- | --- |
 | `openarm-can-cli discover` 에 모터가 안 나온다 | CAN 인터페이스가 안 올라갔거나 배선 문제다. 1단계 확인 명령부터 다시 본다 |
-| `ModuleNotFoundError: scservo_sdk` | venv 를 켠 채로 `python3 -m colcon build` 를 다시 돌린다 (6단계) |
+| `scservo_sdk 를 찾지 못했다` | Feetech SDK 를 설치한다 (6단계) |
 | `could not open port /dev/ttyUSB0` | 포트 번호와 `dialout` 그룹을 확인한다 (4단계) |
 | `/dev/openarm_leader_*` 가 안 생긴다 | udev 규칙은 다시 꽂을 때 적용된다. 보드를 뽑았다 다시 꽂는다 (5단계) |
 | `check` 에서 일부 서보가 응답 없음 | 배선 순서·id 배정을 확인한다 (7단계) |
