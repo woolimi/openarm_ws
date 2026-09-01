@@ -30,14 +30,6 @@ openarm-can-cli -i can1 discover
 
 **확인** — id 1~8 이 모두 응답으로 나온다. 빠진 id 가 있으면 그 모터의 배선·전원을 확인한다.
 
-모터 상태는 실시간으로도 볼 수 있다. 손으로 관절을 움직이면 해당 id 의 위치값이 변한다.
-기본 6초 뒤 스스로 끝나고, 더 길게 보려면 `-d 60000` 처럼 ms 로 준다. 도는 동안 모터가
-enable(토크 ON)됐다가 끝날 때 disarm 된다.
-
-```bash
-openarm-can-cli -i can1 monitor
-```
-
 ## 3단계 — 팔로워 영점 설정
 
 모터를 교체했거나 영점이 틀어진 경우에만 하는 단계다. 출하 시 영점이 잡혀 있으면 건너뛴다.
@@ -53,7 +45,7 @@ openarm-can-cli -i can1 disable
 openarm-can-cli -i can1 set_zero
 ```
 
-**확인** — `openarm-can-cli -i can1 monitor` 에서 영점 자세의 모든 관절 위치가 0 근처다.
+**확인** — `set_zero` 출력에 id 1~8 이 모두 성공으로 나온다.
 
 ## 4단계 — 리더암 시리얼 포트 권한
 
