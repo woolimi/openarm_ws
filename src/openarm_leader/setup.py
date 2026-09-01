@@ -25,6 +25,8 @@ setup(
         'console_scripts': [
             'leader_node = openarm_leader.leader_node:main',
             'calibrate = openarm_leader.calibrate:main',
+            'check = openarm_leader.check:main',
+            'register = openarm_leader.register:main',
         ],
     },
 )

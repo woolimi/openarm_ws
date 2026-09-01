@@ -51,12 +51,15 @@ def main(argv=None):
     feetech_cfg = cfg['feetech']
 
     print(f'포트 {port}, 서보 id {ids}')
-    bus = FeetechBus(
-        port,
-        int(feetech_cfg['baudrate']),
-        int(feetech_cfg['protocol_end']),
-        int(feetech_cfg['present_position_address']),
-    )
+    try:
+        bus = FeetechBus(
+            port,
+            int(feetech_cfg['baudrate']),
+            int(feetech_cfg['protocol_end']),
+            int(feetech_cfg['present_position_address']),
+        )
+    except RuntimeError as error:
+        sys.exit(str(error))
     try:
         prompt('리더암을 영점 자세로 두어라')
         offsets = read_or_exit(bus, ids, '영점 자세')
