@@ -32,7 +32,7 @@ def cleanup_previous_session(_context):
 def generate_launch_description():
     source = LaunchConfiguration('source')
     arms = LaunchConfiguration('arms')
-    use_fake_hardware = LaunchConfiguration('use_fake_hardware')
+    hardware = LaunchConfiguration('hardware')
     config_file = LaunchConfiguration('config_file')
     left_can_interface = LaunchConfiguration('left_can_interface')
     right_can_interface = LaunchConfiguration('right_can_interface')
@@ -50,10 +50,10 @@ def generate_launch_description():
             description='teleoperation 대상 팔. 쉼표로 구분한다.',
         ),
         DeclareLaunchArgument(
-            'use_fake_hardware',
-            default_value='true',
-            choices=['true', 'false'],
-            description='true 면 mock_components, false 면 CAN-FD 실기.',
+            'hardware',
+            default_value='sim',
+            choices=['sim', 'real'],
+            description='sim 은 mock_components, real 은 CAN-FD 실기.',
         ),
         DeclareLaunchArgument(
             'config_file',
@@ -83,7 +83,8 @@ def generate_launch_description():
         ),
         launch_arguments={
             'arm_type': 'v1.0',
-            'use_fake_hardware': use_fake_hardware,
+            'use_fake_hardware': PythonExpression(
+                ["'false' if '", hardware, "' == 'real' else 'true'"]),
             'robot_controller': 'forward_position_controller',
             'left_can_interface': left_can_interface,
             'right_can_interface': right_can_interface,

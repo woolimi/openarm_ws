@@ -130,7 +130,7 @@ Enter 를 누르면 다음 팔로 넘어간다. 영점 자세는 팔로워의 �
 ## 8단계 — 실기 teleop
 
 ```bash
-ros2 launch openarm_leader teleop.launch.py source:=feetech use_fake_hardware:=false
+ros2 launch openarm_leader teleop.launch.py source:=feetech hardware:=real
 ```
 
 **확인** — 리더암을 움직이면 실물 팔로워가 따라온다. 처음 2초는 팔로워 현재 자세에서 리더 자세로
