@@ -144,4 +144,4 @@ ros2 launch openarm_moveit launch.py
 
 ## 다음 실습
 
-실물 OpenArm 과 Feetech 리더암 세팅은 [실기 운용](hardware.md)으로 이어진다.
+실물 OpenArm 과 Feetech 리더암 세팅은 [실기 운용](real.md)으로 이어진다.

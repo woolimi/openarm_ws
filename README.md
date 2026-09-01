@@ -48,13 +48,13 @@ source install/setup.bash
 | 문서 | 내용 |
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt |
-| [docs/hardware.md](docs/hardware.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 실기 teleop |
+| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 실기 teleop |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
 
 ## CLI 도구
 
-`openarm_leader` 가 설치하는 리더암 셋업 도구다. 사용법은 [docs/hardware.md](docs/hardware.md).
+`openarm_leader` 가 설치하는 리더암 셋업 도구다. 사용법은 [docs/real.md](docs/real.md).
 
 | 명령 | 용도 |
 | --- | --- |
