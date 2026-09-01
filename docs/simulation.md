@@ -126,7 +126,7 @@ ros2 topic echo /left_forward_position_controller/commands
 5·6단계를 끄고 MoveIt demo 를 띄운다.
 
 ```bash
-ros2 launch openarm_moveit demo.launch.py
+ros2 launch openarm_moveit launch.py
 ```
 
 **확인** — RViz 왼쪽에 MotionPlanning 패널이 있다. `Planning Group` 을 `left_arm` 으로 두고
