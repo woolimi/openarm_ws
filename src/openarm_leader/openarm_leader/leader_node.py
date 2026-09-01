@@ -66,7 +66,6 @@ class ArmChannel:
             JointTrajectory, f'/{arm}_gripper_controller/joint_trajectory', 10)
 
         self.start_arm = None
-        self.start_gripper = None
         self.ramp_start_ns = None
 
 
@@ -240,7 +239,7 @@ class LeaderNode(Node):
             start = sample_joint_state(self._follower_state, channel)
             if start is None:
                 return
-            channel.start_arm, channel.start_gripper = start
+            channel.start_arm = start[0]
             channel.ramp_start_ns = now_ns
 
         alpha = mapping.ramp_alpha(
@@ -249,7 +248,8 @@ class LeaderNode(Node):
             mapping.blend(start, target, alpha)
             for start, target in zip(channel.start_arm, positions)
         ]
-        gripper_command = mapping.blend(channel.start_gripper, gripper, alpha)
+        # 그리퍼는 시작 보간 없이 리더를 바로 따른다.
+        gripper_command = gripper
 
         channel.arm_publisher.publish(Float64MultiArray(data=arm_command))
 
