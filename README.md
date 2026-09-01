@@ -62,7 +62,7 @@ source install/setup.bash
 | `ros2 run openarm_leader check` | 서보 응답 확인, 관절 매핑 실시간 표시 |
 | `ros2 run openarm_leader calibrate` | 영점·그리퍼 범위 캘리브레이션 |
 
-팔로워(OpenArm 본체) 쪽 모터 스캔·영점 설정은 업스트림 `openarm-can-cli` 가 맡는다.
+팔로워(OpenArm 본체) 쪽 모터 스캔은 업스트림 `openarm-can-cli` 가 맡는다.
 
 ## openarm_leader 노드 인터페이스
 
