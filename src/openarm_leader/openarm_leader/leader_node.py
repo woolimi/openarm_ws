@@ -108,6 +108,8 @@ class FeetechSource:
         }
 
     def read(self, channel):
+        # ids 순서대로 tick 을 읽어 offset_ticks·signs 로 rad 로 바꾼다.
+        # 세 목록 모두 calibrate 가 leader.yaml 에 채운 값이다.
         ticks = self._buses[channel.arm].read_positions(channel.ids)
         if ticks is None:
             return None
@@ -138,9 +140,12 @@ def sample_joint_state(msg, channel):
     """JointState 에서 한 팔의 (관절 7개, 그리퍼) 값을 뽑는다. 없으면 None."""
     if msg is None:
         return None
+    # 관절 이름으로 찾는다.
+    # 슬라이더 창도 팔로워도 URDF 관절 이름을 그대로 쓴다.
     index_of = {name: index for index, name in enumerate(msg.name)}
     try:
-        positions = [float(msg.position[index_of[name]]) for name in channel.joint_names]
+        positions = [float(msg.position[index_of[name]])
+                     for name in channel.joint_names]
         gripper = float(msg.position[index_of[channel.gripper_joint]])
     except (KeyError, IndexError):
         return None
@@ -153,6 +158,7 @@ class LeaderNode(Node):
     def __init__(self):
         super().__init__('leader_node')
 
+        # leader.yaml 값이 파라미터 기본값. launch 인자가 그 위를 덮는다.
         self.declare_parameter('config_file', config_io.default_path())
         config_file = self.get_parameter('config_file').value
         cfg = config_io.load(config_file)
@@ -196,6 +202,8 @@ class LeaderNode(Node):
             10,
         )
 
+        # 입력 소스 선택.
+        # 둘 다 read(channel) 로 (관절 7개, 그리퍼) 를 돌려준다.
         if source_name == 'none':
             self._source = None
             self.get_logger().info('source=none — 리더 입력을 읽지 않는다.')
@@ -212,6 +220,7 @@ class LeaderNode(Node):
         # 다음 명령이 덮어쓰기 전에 지나도록 명령 주기의 절반으로 잡는다.
         self._gripper_horizon_ns = int(0.5e9 / rate_hz)
         self._waiting_logged = False
+        # rate_hz 마다 _on_timer: 팔마다 read → _relay.
         self._timer = self.create_timer(1.0 / rate_hz, self._on_timer)
         self.get_logger().info(
             f'source={source_name}, arms={arms}, rate={rate_hz} Hz, '
@@ -221,6 +230,8 @@ class LeaderNode(Node):
         self._follower_state = msg
 
     def _on_timer(self):
+        # 팔로워 실제 자세가 시작 보간의 출발점.
+        # 받기 전에는 명령을 내지 않는다.
         if self._follower_state is None:
             if not self._waiting_logged:
                 self.get_logger().warn(
@@ -237,12 +248,15 @@ class LeaderNode(Node):
 
     def _relay(self, channel, sample, now_ns):
         positions, gripper = sample
+        # 1) leader.yaml 의 joint_limits_deg 로 clamp
         positions = [
             mapping.clamp(value, lower, upper)
             for value, (lower, upper) in zip(positions, channel.limits)
         ]
         gripper = mapping.clamp(gripper, *channel.gripper_limits)
 
+        # 2) 첫 주기: 팔로워 현재 자세가 출발점.
+        #    보간 시간은 0.5 rad/s 상한으로 늘어난다.
         if channel.start_arm is None:
             start = sample_joint_state(self._follower_state, channel)
             if start is None:
@@ -252,6 +266,8 @@ class LeaderNode(Node):
             channel.ramp_sec = mapping.ramp_duration(
                 channel.start_arm, positions, self._ramp_sec, RAMP_MAX_SPEED)
 
+        # 3) 출발 자세 → 리더 자세 선형 보간.
+        #    alpha 가 1 이 되면 리더 값 그대로.
         alpha = mapping.ramp_alpha(
             (now_ns - channel.ramp_start_ns) / 1e9, channel.ramp_sec)
         arm_command = [
@@ -266,6 +282,8 @@ class LeaderNode(Node):
                 channel.gripper_filtered, gripper, self._gripper_alpha)
         gripper_command = channel.gripper_filtered
 
+        # 4) 팔은 Float64MultiArray 로,
+        #    그리퍼는 JointTrajectory 한 점으로 publish.
         channel.arm_publisher.publish(Float64MultiArray(data=arm_command))
 
         point = JointTrajectoryPoint()
@@ -286,6 +304,7 @@ class LeaderNode(Node):
 
 
 def main(args=None):
+    # launch 의 leader_node 실행 파일이 여기로 들어온다 (setup.py entry_points).
     rclpy.init(args=args)
     node = LeaderNode()
     try:

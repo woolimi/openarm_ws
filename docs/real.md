@@ -5,6 +5,10 @@
 
 준비물은 OpenArm v1.0 본체, CAN-FD 어댑터, Feetech STS3215 리더암이다.
 
+실기 패키지와 Feetech SDK 는 시뮬레이션 실습 3~4단계에서 이미 들어가 있다. 시작 전에
+`python3 -c "import rclpy, scservo_sdk; print('ok')"` 와 `ros2 pkg list | grep openarm_hardware`
+가 각각 출력되는지만 본다.
+
 ## 1단계 — CAN-FD 인터페이스
 
 오른팔은 `can0`, 왼팔은 `can1` 이다. 쓰는 팔의 인터페이스를 올린다.
@@ -30,18 +34,34 @@ openarm-can-cli -i can1 discover
 
 **확인** — id 1~8 이 모두 응답으로 나온다. 빠진 id 가 있으면 그 모터의 배선·전원을 확인한다.
 
-## 3단계 — 리더암 시리얼 포트 권한
+## 3단계 — 서보 id 배정
+
+Feetech 서보는 출하 상태에서 모두 같은 id 를 쓴다. 팔로워 관절 순서대로 어깨에서 그리퍼까지
+1~8 을 하나씩 구워 넣어야 한 버스에서 서로 구분된다. 시리얼 포트를 열려면 `dialout` 그룹이
+필요하다.
 
 ```bash
 sudo usermod -aG dialout $USER
 ```
 
-**확인** — 다시 로그인한 뒤 `groups` 에 `dialout` 이 있고, 리더암을 꽂으면 `ls /dev/ttyUSB*` 에
-포트가 나온다.
+다시 로그인한 뒤 버스를 스캔한다. 리더 보드는 `/dev/ttyACM*` 로 잡힌다.
+
+```bash
+ros2 run openarm_leader register --port /dev/ttyACM1
+```
+
+**확인** — `groups` 에 `dialout` 이 있고, 스캔 결과에 id 1~8 이 모두 나온다.
+
+새로 조립한 팔은 서보를 **하나만** 버스에 연결한 채 id 를 굽고, 다음 서보로 옮겨 8번까지
+반복한다. 여러 개가 잡힌 상태에서는 `--from` 으로 바꿀 서보의 현재 id 를 지정한다.
+
+```bash
+ros2 run openarm_leader register --port /dev/ttyACM1 --id 3
+```
 
 ## 4단계 — 리더 보드 고정 이름
 
-`/dev/ttyUSB0` 같은 번호는 꽂는 순서에 따라 바뀐다. 보드의 USB 어댑터를 udev 규칙으로
+`/dev/ttyACM0` 같은 번호는 꽂는 순서에 따라 바뀐다. 보드의 USB 어댑터를 udev 규칙으로
 `/dev/openarm_leader_left` 같은 고정 이름에 매어 두면 좌우가 뒤바뀌지 않는다.
 
 ```bash
@@ -58,38 +78,7 @@ ros2 run openarm_leader udev
 한 팔만 다시 등록할 때는 `--arm left` 처럼 지정한다. 어댑터에 serial 번호가 없으면 물리
 USB 포트 위치로 고정되므로, 그때는 보드를 늘 같은 포트에 꽂는다.
 
-## 5단계 — Feetech SDK 설치
-
-pip 를 설치하고, 리더 서보와 통신하는 파이썬 SDK 를 사용자 영역(`~/.local`)에 넣는다.
-Ubuntu 24.04 는 시스템 파이썬에 대한 pip 설치를 막으므로 `--break-system-packages` 를 붙인다
-(사용자 홈에만 설치되고 시스템 패키지는 건드리지 않는다).
-
-```bash
-sudo apt install python3-pip
-```
-
-```bash
-python3 -m pip install --user --break-system-packages feetech-servo-sdk
-```
-
-시뮬레이션 빌드에서 뺐던 실기 전용 패키지(`openarm_hardware` 와 metapackage `openarm`)를
-마저 빌드한다.
-
-```bash
-colcon build --symlink-install
-```
-
-```bash
-source install/setup.bash
-```
-
-**확인** — `Summary: 9 packages finished` 가 나오고, 아래 명령이 두 모듈을 모두 찾는다.
-
-```bash
-python3 -c "import rclpy, scservo_sdk; print('ok')"
-```
-
-## 6단계 — 리더 모터 체크
+## 5단계 — 리더 모터 체크
 
 조립을 마친 리더암의 서보 응답과 관절 매핑을 양팔 한 번에 확인한다.
 
@@ -98,7 +87,7 @@ ros2 run openarm_leader check
 ```
 
 포트는 `config/leader.yaml` 의 값(4단계에서 고정 이름으로 바뀜)을 쓴다. 한 팔만 보려면
-`--arm left`, 포트를 직접 주려면 `--arm left --port /dev/ttyUSB0` 처럼 지정한다.
+`--arm left`, 포트를 직접 주려면 `--arm left --port /dev/ttyACM1` 처럼 지정한다.
 
 팔마다 id 8개의 응답을 확인한 뒤 관절별 위치를 실시간으로 보여준다. 관절을 하나씩 손으로
 움직여 화면의 해당 관절 값만 변하는지, 방향이 `+` 로 갈 관절이 `+` 로 가는지 본다. 종료는 Ctrl+C.
@@ -107,7 +96,7 @@ ros2 run openarm_leader check
 
 관절이 어긋나면 서보 id 배정을 `register` 로 확인하고, 방향이 반대면 `config/leader.yaml` 의 `signs` 를 본다.
 
-## 7단계 — 리더 캘리브레이션
+## 6단계 — 리더 캘리브레이션
 
 리더 서보의 영점과 그리퍼 범위를 잡아 `config/leader.yaml` 에 기록한다. 양팔을 차례로
 이어서 진행한다.
@@ -127,13 +116,13 @@ Enter 를 누르면 다음 팔로 넘어간다. 영점 자세는 팔로워의 �
 
 관절 방향이 반대로 도는 서보는 같은 파일의 `signs` 를 `1` 과 `-1` 사이에서 뒤집어 맞춘다.
 
-## 8단계 — 실기 teleop
+## 7단계 — 실기 teleop
 
 팔로워를 실기로 띄운다. 활성화 때 양팔이 영점 자세까지 천천히 이동한다 — 관절당 최대
 0.5 rad/s 라 어디에 놓여 있어도 빠르게 돌지 않는다. 이동 경로의 공간은 비워 둔다.
 
 ```bash
-ros2 launch openarm_follower launch.py hardware:=real
+ros2 launch openarm_follower launch.py use_fake_hardware:=false
 ```
 
 새 터미널에서 리더 relay 를 띄운다. 시작 보간 동안 팔로워가 리더 자세까지 이동한다 —
@@ -144,16 +133,3 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech
 ```
 
 **확인** — 시작 보간이 끝나면 리더암을 움직이는 대로 실물 팔로워가 따라온다.
-
-## 문제 해결
-
-| 증상 | 원인과 조치 |
-| --- | --- |
-| `openarm-can-cli discover` 에 모터가 안 나온다 | CAN 인터페이스가 안 올라갔거나 배선 문제다. 1단계 확인 명령부터 다시 본다 |
-| `scservo_sdk 를 찾지 못했다` | Feetech SDK 를 설치한다 (5단계) |
-| `could not open port /dev/ttyUSB0` | 포트 번호와 `dialout` 그룹을 확인한다 (3단계) |
-| `/dev/openarm_leader_*` 가 안 생긴다 | udev 규칙은 다시 꽂을 때 적용된다. 보드를 뽑았다 다시 꽂는다 (4단계) |
-| `check` 에서 일부 서보가 응답 없음 | 배선과 id 배정을 확인한다. 버스 스캔은 `register` 다 |
-| 리더를 움직여도 팔로워가 그대로다 | 팔로워 `/joint_states` 를 못 받은 상태다. `ros2 control list_controllers` 로 `joint_state_broadcaster` 가 `active` 인지 본다 |
-| 관절 하나가 리더보다 일찍 멈춘다 | `joint_limits_deg` clamp 다. 필요하면 그 관절의 범위를 넓힌다 |
-| 그리퍼가 중간 위치에서 잘게 떤다 | 리더를 쥔 손의 떨림이 전달되는 것이다. `leader.yaml` 의 `gripper_smoothing_alpha` 를 낮춰 더 세게 거른다 |

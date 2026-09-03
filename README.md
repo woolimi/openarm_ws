@@ -1,11 +1,12 @@
 # openarm_ws
 
-Feetech 리더암으로 OpenArm v1.0 을 teleoperation 하고 MoveIt 역기구학을 다루는 ROS 2 workspace.
+OpenArm v1.0 실습용 ROS 2 workspace.
 
-이 리포의 자작 패키지는 팔로워 bringup 인 `openarm_follower`, 리더 입력을 팔로워 컨트롤러
-명령으로 옮기는 `openarm_leader`, MoveIt demo 조립인 `openarm_moveit` 셋이다. 팔로워 제어
-스택 `openarm_ros2` 는 Enactic 원본을 리포에 내장해 쓰고, 로봇 모델(`openarm_description`)과
-CAN 라이브러리(`openarm_can`)는 업스트림에서 받는다.
+- mock hardware 팔로워 bringup — RViz 시뮬레이션 (`openarm_follower`)
+- 슬라이더·Feetech 리더암 입력의 teleoperation relay (`openarm_leader`)
+- 리더암 셋업 CLI — udev·서보 id·캘리브레이션 (`openarm_leader`)
+- MoveIt 실습 — demo 조립, Python 예제 다섯, Servo teleop (`openarm_moveit`)
+- CAN-FD 실기 구동 — Enactic 제어 스택 내장 (`openarm_ros2`)
 
 ## 실행 환경
 
@@ -20,7 +21,7 @@ CAN 라이브러리(`openarm_can`)는 업스트림에서 받는다.
 unzip openarm_ws.zip -d ~
 ```
 
-업스트림 소스를 받아 시뮬레이션용으로 빌드한다. 단계별 설명과 확인 항목은
+업스트림 소스를 받아 시뮬레이션·실기 패키지를 한 번에 빌드한다. 단계별 설명과 확인 항목은
 [docs/simulation.md](docs/simulation.md) 1~4단계에 있다.
 
 ```bash
@@ -29,7 +30,8 @@ sudo apt install python3-vcstool
 vcs import src < openarm.repos
 source /opt/ros/jazzy/setup.bash
 rosdep install --from-paths src --ignore-src -r -y --skip-keys openarm_can
-colcon build --symlink-install --packages-ignore openarm_hardware openarm
+colcon build --symlink-install
+python3 -m pip install --user --break-system-packages feetech-servo-sdk
 source install/setup.bash
 ```
 
@@ -41,7 +43,7 @@ source install/setup.bash
 | `openarm.repos` | 업스트림 2개 리포의 커밋 고정 |
 | `src/openarm_follower/` | 팔로워 bringup launch |
 | `src/openarm_leader/` | 리더 relay 노드, teleop launch, 셋업 CLI |
-| `src/openarm_moveit/` | MoveIt demo launch 와 관절 한계 |
+| `src/openarm_moveit/` | MoveIt demo·Servo launch, SRDF·관절 한계·컨트롤러 설정, Python 예제 5개 |
 | `src/openarm_ros2/` | 내장한 Enactic 팔로워 제어·MoveIt 스택 |
 | `src/openarm_description/`, `src/openarm_can/` | 실습 2단계에서 내려받는 업스트림 소스 |
 
@@ -49,7 +51,7 @@ source install/setup.bash
 
 | 문서 | 내용 |
 | --- | --- |
-| [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt |
+| [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
 | [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 실기 teleop |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
@@ -115,9 +117,34 @@ source install/setup.bash
 
 | 인자 | 기본값 | 내용 |
 | --- | --- | --- |
-| `hardware` | `sim` | `sim` 은 mock hardware, `real` 은 CAN-FD 실기 |
+| `use_fake_hardware` | `true` | `true` 는 mock hardware, `false` 는 CAN-FD 실기 |
 | `left_can_interface` | `can1` | 왼팔 CAN 인터페이스 |
 | `right_can_interface` | `can0` | 오른팔 CAN 인터페이스 |
+
+## openarm_moveit 예제
+
+`demo.launch.py` 가 mock hardware · move_group · 컨트롤러 · RViz 를 한 번에 띄우고, `servo.launch.py` 는
+그 위에 `moveit_servo` 노드를 더한다. 예제는 그 위에서 돈다. 모든 예제는 `arm:=left|right` 파라미터로
+팔을 고른다(기본 `left`). 예제는 한 번에 하나만 돌린다 — 둘이 동시에 목표를 보내면 궤적이 충돌한다.
+
+| 명령 | 내용 |
+| --- | --- |
+| `ros2 launch openarm_moveit demo.launch.py` | MoveIt demo + 예제용 RViz |
+| `ros2 run openarm_moveit ex01_joint_goal` | 관절 하나씩 움직이기 — MoveGroup 액션, JointConstraint |
+| `ros2 run openarm_moveit ex02_pose_goal` | 손끝 자세 지령 — PositionConstraint·OrientationConstraint, IK |
+| `ros2 run openarm_moveit ex03_cartesian_path` | 손끝 직선 보간 — `compute_cartesian_path`, fraction, ExecuteTrajectory |
+| `ros2 run openarm_moveit ex04_pick_and_place` | pick and place — seed IK, GripperCommand 액션 |
+| `ros2 launch openarm_moveit servo.launch.py` | MoveIt demo + Servo 노드 |
+| `ros2 run openarm_moveit ex05_keyboard_servo` | 키보드 teleop — TwistStamped 를 Servo 로 |
+
+ex02~ex04 는 단계마다 `/next_step` 신호를 기다린다. 다른 터미널에서 한 단계씩 넘긴다.
+
+```bash
+ros2 topic pub --once /next_step std_msgs/msg/Empty '{}'
+```
+
+설정은 `openarm_moveit/robot.py`(프레임·planning group·이름 붙은 자세·손끝 방향) 와
+`config/`(SRDF·관절 한계·컨트롤러·RViz·Servo) 에 있다.
 
 ## config/leader.yaml
 
@@ -133,8 +160,6 @@ teleop 설정의 단일 진실 공급원이다. 환경변수는 쓰지 않는다
 | `arms.<arm>.leader.signs` | 관절별 회전 방향 |
 | `arms.<arm>.leader.offset_ticks` | 관절 영점 tick |
 | `arms.<arm>.leader.gripper_ticks` | 그리퍼 열림·닫힘 tick |
-
-`ids` 의 6·7번 자리가 뒤집혀 있다. 리더 6번 서보가 팔로워 joint7 에, 7번 서보가 joint6 에 걸려 있다.
 
 ## 라이선스
 

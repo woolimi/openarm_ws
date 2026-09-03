@@ -1,7 +1,12 @@
-"""OpenArm v1.0 MoveIt demo 를 mock hardware 위에 띄우는 실습용 launch.
+"""OpenArm v1.0 MoveIt demo 를 mock hardware 위에 띄운다.
 
-업스트림 openarm_bimanual_moveit_config 의 v1.0 구성을 그대로 쓰되, joint_limits 만
-acceleration 한계가 채워진 이 패키지의 moveit_joint_limits.yaml 로 바꿔 조립한다.
+업스트림 openarm_bimanual_moveit_config 의 v1.0 구성을 그대로 쓰되, 이 패키지의 파일 넷으로 바꿔 조립한다.
+  - config/openarm_bimanual.srdf — 충돌 제외 쌍에 Never(절대 닿지 않는 쌍)를 더한 SRDF
+  - config/moveit_joint_limits.yaml — acceleration 한계를 채운 관절 한계
+  - config/controllers.yaml — 그리퍼를 GripperActionController 로 두어 MoveIt 의 GripperCommand 와 맞춘다
+  - config/demo.rviz — MotionPlanning 패널에 예제 마커 display 를 더한 RViz 설정
+
+    ros2 launch openarm_moveit demo.launch.py [rviz_config:=<.rviz 경로>]
 """
 
 import os
@@ -13,7 +18,8 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import OpaqueFunction, TimerAction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
+from launch.substitutions import LaunchConfiguration
 
 from launch_ros.actions import Node
 
@@ -37,10 +43,9 @@ def cleanup_previous_session(_context):
     return []
 
 
-def moveit_nodes(_context):
+def moveit_nodes(context):
     description_path = get_package_share_directory('openarm_description')
     moveit_path = get_package_share_directory('openarm_bimanual_moveit_config')
-    bringup_path = get_package_share_directory('openarm_bringup')
     demo_path = get_package_share_directory('openarm_moveit')
 
     xacro_path = os.path.join(
@@ -48,9 +53,7 @@ def moveit_nodes(_context):
         'urdf', 'openarm_v10.urdf.xacro')
     robot_description = xacro.process_file(
         xacro_path, mappings=XACRO_MAPPINGS).toprettyxml(indent='  ')
-    controllers_file = os.path.join(
-        bringup_path, 'config', 'controllers',
-        'openarm_bimanual_moveit_controllers.yaml')
+    controllers_file = os.path.join(demo_path, 'config', 'controllers.yaml')
 
     robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -71,7 +74,7 @@ def moveit_nodes(_context):
             'openarm', package_name='openarm_bimanual_moveit_config')
         .robot_description(file_path=xacro_path, mappings=XACRO_MAPPINGS)
         .robot_description_semantic(
-            file_path=f'config/{CONFIG_DIR}/openarm_bimanual.srdf')
+            file_path=os.path.join(demo_path, 'config', 'openarm_bimanual.srdf'))
         .robot_description_kinematics(
             file_path=f'config/{CONFIG_DIR}/kinematics.yaml')
         .joint_limits(
@@ -94,8 +97,7 @@ def moveit_nodes(_context):
             moveit_params.setdefault(
                 'robot_description_planning', {}).update(data)
 
-    rviz_config = os.path.join(
-        moveit_path, 'config', CONFIG_DIR, 'moveit.rviz')
+    rviz_config = LaunchConfiguration('rviz_config').perform(context)
     move_group = Node(
         package='moveit_ros_move_group',
         executable='move_group',
@@ -114,6 +116,11 @@ def moveit_nodes(_context):
 
 
 def generate_launch_description():
+    default_rviz = os.path.join(
+        get_package_share_directory('openarm_moveit'), 'config', 'demo.rviz')
+    rviz_config_arg = DeclareLaunchArgument(
+        'rviz_config', default_value=default_rviz,
+        description='RViz 설정 파일')
     jsb_spawner = Node(
         package='controller_manager',
         executable='spawner',
@@ -134,6 +141,7 @@ def generate_launch_description():
                    '-c', '/controller_manager'],
     )
     return LaunchDescription([
+        rviz_config_arg,
         OpaqueFunction(function=cleanup_previous_session),
         OpaqueFunction(function=moveit_nodes),
         TimerAction(period=2.0, actions=[jsb_spawner]),

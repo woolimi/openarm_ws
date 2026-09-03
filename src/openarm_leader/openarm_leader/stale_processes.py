@@ -11,6 +11,7 @@ SESSION_PROCESS_NAMES = (
     'move_group',
     'rviz2',
     'leader_node',
+    'servo_node',
     'joint_state_publisher_gui',
 )
 GRACE_SEC = 2.0

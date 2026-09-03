@@ -52,15 +52,20 @@ def generate_launch_description():
         ),
     ]
 
+    # 슬라이더 GUI. source 가 sliders 일 때만 뜬다.
+    # joint_states 를 /leader/joint_states 로 바꿔
+    # 팔로워의 /joint_states 와 섞이지 않게 한다.
     slider_leader = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
         name='leader_joint_state_publisher_gui',
         output='screen',
         remappings=[('joint_states', LEADER_JOINT_STATES_TOPIC)],
-        condition=IfCondition(PythonExpression(["'", source, "' == 'sliders'"])),
+        condition=IfCondition(
+            PythonExpression(["'", source, "' == 'sliders'"])),
     )
 
+    # 리더 relay 노드. 항상 뜨고, launch 인자 셋을 파라미터로 받는다.
     leader_node = Node(
         package='openarm_leader',
         executable='leader_node',

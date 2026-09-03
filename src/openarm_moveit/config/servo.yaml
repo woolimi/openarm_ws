@@ -1,0 +1,44 @@
+# MoveIt Servo 파라미터 — OpenArm v1.0 한 팔.
+# move_group_name 과 command_out_topic 은 servo.launch.py 가 arm 인자에 맞춰 덮어쓴다.
+
+publish_period: 0.02            # 1 / 발행 주기 [s]
+max_expected_latency: 0.2       # 명령이 컨트롤러에 닿기까지 예상 지연 [s]
+
+move_group_name: left_arm
+
+command_in_type: unitless       # 입력이 [-1, 1] 무차원 (조이스틱처럼)
+scale:
+  linear: 0.15                  # unitless 1.0 → 0.15 m/s
+  rotational: 0.5               # unitless 1.0 → 0.5 rad/s
+  joint: 0.5
+incoming_command_timeout: 0.1   # 이보다 오래된 명령은 버린다 [s]
+
+cartesian_command_in_topic: ~/delta_twist_cmds
+joint_command_in_topic: ~/delta_joint_cmds
+joint_topic: /joint_states
+status_topic: ~/status
+command_out_topic: /left_joint_trajectory_controller/joint_trajectory
+command_out_type: trajectory_msgs/JointTrajectory
+publish_joint_positions: true
+publish_joint_velocities: true
+publish_joint_accelerations: false
+
+use_smoothing: true
+smoothing_filter_plugin_name: online_signal_smoothing::AccelerationLimitedPlugin
+
+is_primary_planning_scene_monitor: false   # planning scene 은 move_group 이 주인
+check_octomap_collisions: false
+check_collisions: true
+collision_check_rate: 10.0
+self_collision_proximity_threshold: 0.01
+scene_collision_proximity_threshold: 0.02
+
+# 특이점 판정 — Jacobian 조건수. ready 자세가 약 18, 팔꿈치를 반쯤 편 자세가 약 35,
+# 거의 다 편 자세가 약 70 이다. lower 를 넘으면 감속, hard_stop 을 넘으면 정지.
+lower_singularity_threshold: 30.0
+hard_stop_singularity_threshold: 60.0
+leaving_singularity_threshold_multiplier: 2.0
+
+halt_all_joints_in_joint_mode: true
+halt_all_joints_in_cartesian_mode: true
+joint_limit_margins: [0.15]     # 관절 한계 앞 여유 [rad] — 이 안에 들어오면 멈춘다
