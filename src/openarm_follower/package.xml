@@ -3,11 +3,17 @@
 <package format="3">
   <name>openarm_follower</name>
   <version>0.1.0</version>
-  <description>OpenArm v1.0 팔로워 bringup — use_fake_hardware 인자로 mock 과 CAN-FD 실기를 고른다.</description>
+  <description>OpenArm v1.0 팔로워 bringup 과 중력보상 캘리브레이션 CLI.</description>
   <maintainer email="woolim@pinklab.art">Woolim Park</maintainer>
   <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>ament_index_python</depend>
+  <depend>pinocchio</depend>
+  <depend>python3-numpy</depend>
+  <depend>python3-yaml</depend>
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
@@ -15,7 +21,9 @@
   <exec_depend>openarm_description</exec_depend>
   <exec_depend>openarm_leader</exec_depend>
 
+  <test_depend>python3-pytest</test_depend>
+
   <export>
-    <build_type>ament_cmake</build_type>
+    <build_type>ament_python</build_type>
   </export>
 </package>

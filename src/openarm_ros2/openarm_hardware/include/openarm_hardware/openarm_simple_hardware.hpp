@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <memory>
 #include <openarm/can/socket/openarm.hpp>
@@ -25,6 +26,7 @@
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "openarm_hardware/dynamics.hpp"
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -121,6 +123,24 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   bool hand_;
   bool can_fd_;
 
+  // Gravity feed-forward (#77). Every value here is measured per robot, so the
+  // description passes it in; the defaults below only mean "not calibrated".
+  bool gravity_comp_ = false;
+  std::string root_link_;
+  std::string tip_link_;
+  double payload_mass_ = 0.0;
+  std::array<double, 3> payload_com_ = {0.0, 0.0, 0.0};
+  // Per-joint constant torque offset (Nm), clamped to +-TAU_BIAS_LIMIT.
+  std::vector<double> tau_bias_ = std::vector<double>(ARM_DOF, 0.0);
+  // Absolute per-joint cap on the feed-forward term (Nm). Half the joint's
+  // rated effort (40/40/27/27/7/7/7 Nm), so a bad model cannot spend more than
+  // half the motor and the PD term keeps its headroom.
+  std::vector<double> saturation_cap_ = {20.0, 20.0, 13.5, 13.5, 3.5, 3.5, 3.5};
+  static constexpr double TAU_BIAS_LIMIT = 1.5;
+  std::unique_ptr<Dynamics> dynamics_;
+  // write() scratch, sized here so the RT path allocates nothing.
+  std::vector<double> feedforward_ = std::vector<double>(ARM_DOF, 0.0);
+
   // OpenArm instance
   std::unique_ptr<openarm::can::socket::OpenArm> openarm_;
 
@@ -149,6 +169,9 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   void return_to_zero();
   bool parse_config(const hardware_interface::HardwareInfo& info);
   void generate_joint_names();
+  // Fills feedforward_ with the capped model torque plus the measured offset
+  // for the current pose, or zeros when compensation is off. Allocation-free.
+  void update_feedforward();
 
   // Gripper mapping functions
   double joint_to_motor_radians(double joint_value);

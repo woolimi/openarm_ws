@@ -25,12 +25,17 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+# Gravity feed-forward (#77) needs the URDF and a KDL dynamics solver.
+find_package(kdl_parser REQUIRED)
+find_package(orocos_kdl_vendor REQUIRED)
+find_package(urdf REQUIRED)
 
 # Find openarm_can library
 find_package(OpenArmCAN REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/openarm_simple_hardware.cpp
+  src/dynamics.cpp
 )
 
 target_include_directories(
@@ -45,9 +50,12 @@ target_link_libraries(${PROJECT_NAME}
 
 ament_target_dependencies(${PROJECT_NAME}
   hardware_interface
+  kdl_parser
+  orocos_kdl_vendor
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  urdf
 )
 
 pluginlib_export_plugin_description_file(hardware_interface openarm_hardware.xml)
@@ -70,9 +78,12 @@ ament_export_libraries(
 )
 ament_export_dependencies(
   hardware_interface
+  kdl_parser
   openarm_can
+  orocos_kdl_vendor
   pluginlib
   rclcpp
+  urdf
 )
 
 ament_package()

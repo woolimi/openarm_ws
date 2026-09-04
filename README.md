@@ -3,6 +3,7 @@
 OpenArm v1.0 실습용 ROS 2 workspace.
 
 - mock hardware 팔로워 bringup — RViz 시뮬레이션 (`openarm_follower`)
+- 중력보상 설정과 캘리브레이션 CLI (`openarm_follower`)
 - 슬라이더·Feetech 리더암 입력의 teleoperation relay (`openarm_leader`)
 - 리더암 셋업 CLI — udev·서보 id·캘리브레이션 (`openarm_leader`)
 - MoveIt 실습 — demo 조립, Python 예제 다섯, Servo teleop (`openarm_moveit`)
@@ -41,7 +42,7 @@ source install/setup.bash
 | --- | --- |
 | `docs/` | 단계별 실습 문서 |
 | `openarm.repos` | 업스트림 2개 리포의 커밋 고정 |
-| `src/openarm_follower/` | 팔로워 bringup launch |
+| `src/openarm_follower/` | 팔로워 bringup launch, 중력보상 설정과 캘리브레이션 CLI |
 | `src/openarm_leader/` | 리더 relay 노드, teleop launch, 셋업 CLI |
 | `src/openarm_moveit/` | MoveIt demo·Servo launch, SRDF·관절 한계·컨트롤러 설정, Python 예제 5개 |
 | `src/openarm_ros2/` | 내장한 Enactic 팔로워 제어·MoveIt 스택 |
@@ -52,20 +53,21 @@ source install/setup.bash
 | 문서 | 내용 |
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
-| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 실기 teleop |
+| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
 
 ## CLI 도구
 
-`openarm_leader` 가 설치하는 리더암 셋업 도구다. 사용법은 [docs/real.md](docs/real.md).
+실기 셋업 도구다. 사용법은 [docs/real.md](docs/real.md).
 
 | 명령 | 용도 |
 | --- | --- |
 | `ros2 run openarm_leader udev` | 보드 고정 장치 이름(udev rule) 등록 |
 | `ros2 run openarm_leader register` | 서보 id 스캔·배정 |
 | `ros2 run openarm_leader check` | 서보 응답 확인, 관절 매핑 실시간 표시 |
-| `ros2 run openarm_leader calibrate` | 영점·그리퍼 범위 캘리브레이션 |
+| `ros2 run openarm_leader calibrate` | 리더암 영점·그리퍼 범위 캘리브레이션 |
+| `ros2 run openarm_follower calibrate` | 중력보상 페이로드·토크 오프셋 실측 |
 
 팔로워(OpenArm 본체) 쪽 모터 스캔은 업스트림 `openarm-can-cli` 가 맡는다.
 
@@ -120,6 +122,7 @@ source install/setup.bash
 | `use_fake_hardware` | `true` | `true` 는 mock hardware, `false` 는 CAN-FD 실기 |
 | `left_can_interface` | `can1` | 왼팔 CAN 인터페이스 |
 | `right_can_interface` | `can0` | 오른팔 CAN 인터페이스 |
+| `config_file` | 설치된 `follower.yaml` | 중력보상 설정 파일 경로 |
 
 ## openarm_moveit 예제
 
@@ -165,6 +168,33 @@ teleop 설정의 단일 진실 공급원이다. 환경변수는 쓰지 않는다
 | `arms.<arm>.leader.signs` | 관절별 회전 방향 |
 | `arms.<arm>.leader.offset_ticks` | 관절 영점 tick |
 | `arms.<arm>.leader.gripper_ticks` | 그리퍼 열림·닫힘 tick |
+
+## 중력보상
+
+팔로워 하드웨어는 MIT 임피던스로 돈다 — 관절 토크는 `kp·(q* − q) + kd·(q̇* − q̇) + τ_ff` 다.
+`τ_ff` 를 0 으로 두면 위치 게인만으로 팔 무게를 버텨야 해서, 지령 사이에서 팔이 아래로 쳐진다.
+`gravity_comp` 를 켜면 URDF 로 만든 KDL 모델이 그 자세의 중력토크 G(q) 를 계산해 `τ_ff` 에 얹는다.
+모터가 무게를 들고, PD 항은 추종 오차만 고친다.
+
+모델이 모르는 것은 두 가지다. 손끝에 달린 미모델 질량(그리퍼 손가락·배선·물린 물체)과 모터마다
+다른 토크 영점 오차다. 둘 다 로봇 한 대의 실측이라 `config/follower.yaml` 에 산다.
+
+## config/follower.yaml
+
+팔로워 설정의 단일 진실 공급원이다. bringup 이 이 값을 URDF 의 하드웨어 블록에 실어
+플러그인에 넘긴다. 환경변수는 쓰지 않는다.
+
+| 항목 | 내용 |
+| --- | --- |
+| `gravity_comp` | 중력 피드포워드 on/off |
+| `root_link` | 중력을 표현하는 프레임. world 정렬 링크여야 한다 |
+| `saturation_cap` | 피드포워드 항의 관절별 절대 상한 [Nm] |
+| `arms.<arm>.tip_link` | 중력 모델 사슬의 끝. `payload_com` 의 기준 프레임이기도 하다 |
+| `arms.<arm>.payload_mass` | 손끝 미모델 질량 [kg] — 캘리브레이션 산출값 |
+| `arms.<arm>.payload_com` | 그 질량의 무게중심 [m] — 캘리브레이션 산출값 |
+| `arms.<arm>.tau_bias` | 관절별 상수 토크 오프셋 [Nm] — 캘리브레이션 산출값 |
+| `calibration` | 자세 이동 속도, 안정화·표본 시간, 양방향 접근 |
+| `plausibility` | 저장 전 타당성 상자. 자릿수 오타를 여기서 막는다 |
 
 ## 라이선스
 

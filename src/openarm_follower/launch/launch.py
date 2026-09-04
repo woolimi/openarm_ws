@@ -2,6 +2,9 @@
 
 노드를 직접 띄우지 않는다. vendored openarm_bringup 의 bimanual launch 를
 include 하면서 이 스택에 맞는 인자를 고정하는 것이 이 파일의 전부다.
+
+그 인자 하나가 config/follower.yaml 이다. 중력보상·페이로드·토크 오프셋은 이 로봇
+한 대의 실측이라 URDF 가 알 수 없고, bringup 이 하드웨어 블록에 실어 준다.
 """
 
 from launch import LaunchDescription
@@ -28,11 +31,12 @@ def cleanup_previous_session(_context):
 
 
 def generate_launch_description():
-    # 명령줄에서 주는 인자는 이 셋뿐이다. 나머지는 아래 include 에서 고정한다.
+    # 명령줄에서 주는 인자는 이 넷뿐이다. 나머지는 아래 include 에서 고정한다.
     # use_fake_hardware 는 upstream openarm_bringup 의 인자 이름을 그대로 쓴다.
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     left_can_interface = LaunchConfiguration('left_can_interface')
     right_can_interface = LaunchConfiguration('right_can_interface')
+    config_file = LaunchConfiguration('config_file')
 
     declared_arguments = [
         # true|false 밖의 값은 launch 가 거부한다.
@@ -52,6 +56,13 @@ def generate_launch_description():
             'right_can_interface',
             default_value='can0',
             description='오른팔 CAN 인터페이스. 실기에서만 쓴다.',
+        ),
+        DeclareLaunchArgument(
+            'config_file',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('openarm_follower'), 'config', 'follower.yaml',
+            ]),
+            description='중력보상 설정 파일. 하드웨어 블록의 값이 여기서 온다.',
         ),
     ]
 
@@ -75,6 +86,8 @@ def generate_launch_description():
             'robot_controller': 'forward_position_controller',
             'left_can_interface': left_can_interface,
             'right_can_interface': right_can_interface,
+            # 중력보상·페이로드·토크 오프셋을 하드웨어 블록에 싣는다.
+            'hardware_config_file': config_file,
         }.items(),
     )
 

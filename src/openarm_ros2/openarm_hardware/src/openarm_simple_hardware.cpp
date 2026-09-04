@@ -18,6 +18,7 @@
 #include <cctype>
 #include <cmath>
 #include <chrono>
+#include <sstream>
 #include <thread>
 #include <vector>
 
@@ -76,6 +77,66 @@ bool OpenArmHW::parse_config(const hardware_interface::HardwareInfo& info) {
   it = info.hardware_parameters.find("ee_type");
   ee_type_ =
       (it != info.hardware_parameters.end()) ? it->second : "parallel_link";
+
+  // --- Gravity feed-forward (#77) --------------------------------------
+  it = info.hardware_parameters.find("gravity_comp");
+  if (it != info.hardware_parameters.end()) {
+    std::string value = it->second;
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    gravity_comp_ = (value == "true" || value == "1" || value == "on");
+  }
+  // Chain endpoints. The root must be world-aligned because gravity is
+  // expressed in it. The tip decides where the modelled arm stops: a KDL chain
+  // is one branch, so whatever hangs off the tip (the prismatic fingers, the
+  // wiring, anything held) is outside it and is what the payload below stands
+  // for. link7 is the default because it is the last link the seven joints
+  // carry with no end effector attached.
+  it = info.hardware_parameters.find("root_link");
+  root_link_ = (it != info.hardware_parameters.end()) ? it->second
+                                                      : "openarm_body_link0";
+  it = info.hardware_parameters.find("tip_link");
+  tip_link_ = (it != info.hardware_parameters.end())
+                  ? it->second
+                  : "openarm_" + arm_prefix_ + "link7";
+
+  // Measured tip mass and its CoM in the tip frame ("x y z", m).
+  it = info.hardware_parameters.find("payload_mass");
+  if (it != info.hardware_parameters.end() && !it->second.empty()) {
+    payload_mass_ = std::stod(it->second);
+  }
+  it = info.hardware_parameters.find("payload_com");
+  if (it != info.hardware_parameters.end() && !it->second.empty()) {
+    std::istringstream iss(it->second);
+    for (size_t i = 0; i < payload_com_.size(); ++i) {
+      double v = 0.0;
+      if (!(iss >> v)) break;
+      payload_com_[i] = v;
+    }
+  }
+
+  // Per-joint constant torque offset ("b1 .. b7", Nm) from calibration.
+  it = info.hardware_parameters.find("tau_bias");
+  if (it != info.hardware_parameters.end() && !it->second.empty()) {
+    std::istringstream iss(it->second);
+    for (size_t i = 0; i < ARM_DOF; ++i) {
+      double v = 0.0;
+      if (!(iss >> v)) break;
+      tau_bias_[i] = std::clamp(v, -TAU_BIAS_LIMIT, TAU_BIAS_LIMIT);
+    }
+  }
+
+  // Feed-forward cap ("c1 .. c7", Nm). A short list leaves the rest at the
+  // rated-effort defaults rather than opening the cap.
+  it = info.hardware_parameters.find("saturation_cap");
+  if (it != info.hardware_parameters.end() && !it->second.empty()) {
+    std::istringstream iss(it->second);
+    for (size_t i = 0; i < ARM_DOF; ++i) {
+      double v = 0.0;
+      if (!(iss >> v)) break;
+      if (v > 0.0) saturation_cap_[i] = v;
+    }
+  }
+
   if (hand_) {
     it = info.hardware_parameters.find("kp_hand");
     if (it != info.hardware_parameters.end()) {
@@ -88,9 +149,21 @@ bool OpenArmHW::parse_config(const hardware_interface::HardwareInfo& info) {
   }
 
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
-              "Configuration: CAN=%s, arm_prefix=%s, hand=%s, can_fd=%s",
+              "Configuration: CAN=%s, arm_prefix=%s, hand=%s, can_fd=%s, "
+              "gravity_comp=%s",
               can_interface_.c_str(), arm_prefix_.c_str(),
-              hand_ ? "enabled" : "disabled", can_fd_ ? "enabled" : "disabled");
+              hand_ ? "enabled" : "disabled", can_fd_ ? "enabled" : "disabled",
+              gravity_comp_ ? "enabled" : "disabled");
+  if (gravity_comp_) {
+    RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
+                "Gravity feed-forward: %s -> %s, payload %.3f kg at "
+                "(%.3f, %.3f, %.3f) m, tau_bias %.2f %.2f %.2f %.2f %.2f %.2f "
+                "%.2f Nm",
+                root_link_.c_str(), tip_link_.c_str(), payload_mass_,
+                payload_com_[0], payload_com_[1], payload_com_[2],
+                tau_bias_[0], tau_bias_[1], tau_bias_[2], tau_bias_[3],
+                tau_bias_[4], tau_bias_[5], tau_bias_[6]);
+  }
   return true;
 }
 
@@ -134,6 +207,24 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
 
   // Generate joint names based on arm prefix
   generate_joint_names();
+
+  // Build the KDL model from the exact URDF this robot was loaded with, so the
+  // compensation can never drift from the description. A model that will not
+  // build turns compensation off rather than feeding write() garbage.
+  if (gravity_comp_) {
+    dynamics_ =
+        std::make_unique<Dynamics>(info.original_xml, root_link_, tip_link_);
+    dynamics_->SetPayload(payload_mass_, payload_com_[0], payload_com_[1],
+                          payload_com_[2]);
+    if (!dynamics_->Init() || dynamics_->joint_count() != ARM_DOF) {
+      RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"),
+                   "Gravity feed-forward disabled: the chain %s -> %s did not "
+                   "build with %zu joints",
+                   root_link_.c_str(), tip_link_.c_str(), ARM_DOF);
+      dynamics_.reset();
+      gravity_comp_ = false;
+    }
+  }
 
   // Validate joint count (7 arm joints + optional gripper)
   size_t expected_joints = ARM_DOF + (hand_ ? 1 : 0);
@@ -319,13 +410,36 @@ hardware_interface::return_type OpenArmHW::read(
   return hardware_interface::return_type::OK;
 }
 
+void OpenArmHW::update_feedforward() {
+  // tau_bias is solved together with the payload from the same measurement, so
+  // the two are one calibration result and go on or off together.
+  if (!gravity_comp_ || !dynamics_) {
+    std::fill(feedforward_.begin(), feedforward_.end(), 0.0);
+    return;
+  }
+  dynamics_->GetGravity(pos_states_.data(), feedforward_.data());
+  // Absolute per-joint cap, applied every cycle the compensation is alive.
+  // It is the last line of defence against a bad payload estimate: the
+  // calibration writes a number into a file, and nothing between that file
+  // and the motors checks it but this.
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    feedforward_[i] = std::clamp(feedforward_[i], -saturation_cap_[i],
+                                 saturation_cap_[i]) +
+                      tau_bias_[i];
+  }
+}
+
 hardware_interface::return_type OpenArmHW::write(
     const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {
+  // Model feed-forward (#77): tau_ff = tau_cmd + G(q) + tau_bias so the motors
+  // hold the arm's weight and the MIT PD term only corrects tracking error.
+  update_feedforward();
+
   // Control arm motors with MIT control
   std::vector<openarm::damiao_motor::MITParam> arm_params;
   for (size_t i = 0; i < ARM_DOF; ++i) {
-    arm_params.push_back(
-        {kp_[i], kd_[i], pos_commands_[i], vel_commands_[i], tau_commands_[i]});
+    arm_params.push_back({kp_[i], kd_[i], pos_commands_[i], vel_commands_[i],
+                          tau_commands_[i] + feedforward_[i]});
   }
   openarm_->get_arm().mit_control_all(arm_params);
   // Control gripper if enabled
@@ -369,10 +483,18 @@ void OpenArmHW::return_to_zero() {
   for (int step = 0; step <= steps; ++step) {
     double t = static_cast<double>(step) / steps;
 
+    // Homing runs before the controllers do, so pos_states_ is not being
+    // refreshed by read(). Take the pose straight from the motors, which
+    // recv_all() at the end of each step keeps current.
+    for (size_t i = 0; i < ARM_DOF && i < arm_motors.size(); ++i) {
+      pos_states_[i] = arm_motors[i].get_position();
+    }
+    update_feedforward();
+
     std::vector<openarm::damiao_motor::MITParam> arm_params;
     for (size_t i = 0; i < ARM_DOF; ++i) {
       double target = start_pos[i] + t * (ZERO_POSITION[i] - start_pos[i]);
-      arm_params.push_back({kp_[i], kd_[i], target, 0.0, 0.0});
+      arm_params.push_back({kp_[i], kd_[i], target, 0.0, feedforward_[i]});
     }
     openarm_->get_arm().mit_control_all(arm_params);
 

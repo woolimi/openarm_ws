@@ -15,6 +15,7 @@
 
 import os
 import xacro
+import yaml
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -47,6 +48,63 @@ def resolve_arm_config(arm_type_str: str) -> tuple[str, str]:
     return "openarm_v2.0", "openarm_v20.urdf.xacro"
 
 
+#: Hardware params the description cannot know: they are measured per robot.
+#: Whole-robot values sit at the top level of the yaml, per-arm values under
+#: arms.<arm>. The names are the ones OpenArmHW reads.
+ROBOT_HARDWARE_PARAMS = ("gravity_comp", "root_link", "saturation_cap")
+ARM_HARDWARE_PARAMS = ("tip_link", "payload_mass", "payload_com", "tau_bias")
+
+
+def format_hardware_param(value):
+    """Render a yaml value the way OpenArmHW parses it: a list becomes the
+    space-separated numbers its istringstream reads, everything else its
+    lower-case text (the plugin compares booleans as "true"/"1"/"on")."""
+    if isinstance(value, (list, tuple)):
+        return " ".join(f"{float(v):.6g}" for v in value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def inject_hardware_params(document, config_path):
+    """Add the measured params to every OpenArmHW <hardware> block in place.
+
+    The ros2_control xacro lives in openarm_description, which this workspace
+    pulls from upstream and does not edit, so the values are added to the
+    generated document instead. Blocks are matched by their plugin, so a mock
+    hardware run is left untouched, and the arm is picked by the block's own
+    arm_prefix, so the left arm can never be handed the right arm's payload.
+    """
+    with open(config_path, "r", encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+    arms = config.get("arms") or {}
+
+    for hardware in document.getElementsByTagName("hardware"):
+        plugins = hardware.getElementsByTagName("plugin")
+        if not plugins or not plugins[0].firstChild:
+            continue
+        if plugins[0].firstChild.data.strip() != "openarm_hardware/OpenArmHW":
+            continue
+
+        params = {}
+        for node in hardware.getElementsByTagName("param"):
+            if node.firstChild:
+                params[node.getAttribute("name")] = node.firstChild.data.strip()
+        arm = params.get("arm_prefix", "").rstrip("_")
+        values = {key: config[key]
+                  for key in ROBOT_HARDWARE_PARAMS if key in config}
+        values.update({key: (arms.get(arm) or {})[key]
+                       for key in ARM_HARDWARE_PARAMS
+                       if key in (arms.get(arm) or {})})
+
+        for name, value in values.items():
+            element = document.createElement("param")
+            element.setAttribute("name", name)
+            element.appendChild(
+                document.createTextNode(format_hardware_param(value)))
+            hardware.appendChild(element)
+
+
 def namespace_from_context(context, arm_prefix):
     arm_prefix_str = context.perform_substitution(arm_prefix)
     if arm_prefix_str:
@@ -55,13 +113,15 @@ def namespace_from_context(context, arm_prefix):
 
 
 def generate_robot_description(context: LaunchContext, description_package, description_file,
-                               arm_type, use_fake_hardware, right_can_interface, left_can_interface):
+                               arm_type, use_fake_hardware, right_can_interface, left_can_interface,
+                               hardware_config_file):
     """Generate robot description using xacro processing."""
     description_package_str = context.perform_substitution(description_package)
     arm_type_str = context.perform_substitution(arm_type)
     use_fake_hardware_str = context.perform_substitution(use_fake_hardware)
     right_can_interface_str = context.perform_substitution(right_can_interface)
     left_can_interface_str = context.perform_substitution(left_can_interface)
+    hardware_config_file_str = context.perform_substitution(hardware_config_file)
 
     folder_name, file_name = resolve_arm_config(arm_type_str)
 
@@ -70,7 +130,7 @@ def generate_robot_description(context: LaunchContext, description_package, desc
         "assets", "robot", folder_name, "urdf", file_name
     )
 
-    robot_description = xacro.process_file(
+    document = xacro.process_file(
         xacro_path,
         mappings={
             "arm_type": arm_type_str,
@@ -80,20 +140,25 @@ def generate_robot_description(context: LaunchContext, description_package, desc
             "right_can_interface": right_can_interface_str,
             "left_can_interface": left_can_interface_str,
         }
-    ).toprettyxml(indent="  ")
+    )
 
-    return robot_description
+    if hardware_config_file_str:
+        inject_hardware_params(document, hardware_config_file_str)
+
+    return document.toprettyxml(indent="  ")
 
 
 def robot_nodes_spawner(context: LaunchContext, description_package, description_file,
                         arm_type, use_fake_hardware, controllers_file,
-                        right_can_interface, left_can_interface, arm_prefix):
+                        right_can_interface, left_can_interface, arm_prefix,
+                        hardware_config_file):
     """Spawn both robot state publisher and control nodes with shared robot description."""
     namespace = namespace_from_context(context, arm_prefix)
 
     robot_description = generate_robot_description(
         context, description_package, description_file, arm_type,
         use_fake_hardware, right_can_interface, left_can_interface,
+        hardware_config_file,
     )
 
     controllers_file_str = context.perform_substitution(controllers_file)
@@ -210,6 +275,13 @@ def generate_launch_description():
             default_value="openarm_bimanual_controllers.yaml",
             description="Controllers file to use.",
         ),
+        DeclareLaunchArgument(
+            "hardware_config_file",
+            default_value="",
+            description="YAML with the measured hardware params (gravity "
+                        "compensation, payload, torque bias). Empty leaves the "
+                        "description untouched.",
+        ),
     ]
 
     description_package = LaunchConfiguration("description_package")
@@ -222,6 +294,7 @@ def generate_launch_description():
     right_can_interface = LaunchConfiguration("right_can_interface")
     left_can_interface = LaunchConfiguration("left_can_interface")
     arm_prefix = LaunchConfiguration("arm_prefix")
+    hardware_config_file = LaunchConfiguration("hardware_config_file")
 
     controllers_file = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config",
@@ -232,7 +305,8 @@ def generate_launch_description():
         function=robot_nodes_spawner,
         args=[description_package, description_file, arm_type,
               use_fake_hardware, controllers_file,
-              right_can_interface, left_can_interface, arm_prefix]
+              right_can_interface, left_can_interface, arm_prefix,
+              hardware_config_file]
     )
 
     rviz_config_file = PathJoinSubstitution(
