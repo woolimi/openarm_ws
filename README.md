@@ -101,7 +101,7 @@ source install/setup.bash
 | `source` | `sliders` | `none`, `sliders`, `feetech` |
 | `arms` | `left,right` | 대상 팔, 쉼표 구분 |
 | `rate_hz` | `30.0` | 명령 발행 주기 |
-| `ramp_sec` | `2.0` | 시작 보간 최소 시간 (팔 관절만, 관절 속도 0.5 rad/s 상한) |
+| `ramp_sec` | `2.0` | 시작 보간 최소 시간 (팔 관절만, 관절 속도 0.4 rad/s 상한) |
 | `gripper_smoothing_alpha` | `0.25` | 그리퍼 low-pass 계수, 1 이면 필터 없음 |
 | `leader_joint_states_topic` | `/leader/joint_states` | 리더 입력 토픽 |
 | `follower_joint_states_topic` | `/joint_states` | 팔로워 상태 토픽 |

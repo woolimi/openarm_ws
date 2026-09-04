@@ -470,7 +470,7 @@ void OpenArmHW::return_to_zero() {
   }
 
   // Cap the joint speed so a distant starting pose still homes slowly.
-  const double max_speed = 0.5;  // rad/s
+  const double max_speed = 0.4;  // rad/s
   const int step_ms = 10;
   double max_dist = std::abs(gripper_target - gripper_start);
   for (size_t i = 0; i < ARM_DOF; ++i) {

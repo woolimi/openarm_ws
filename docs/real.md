@@ -180,14 +180,14 @@ ros2 run openarm_follower calibrate_gravity
 ## 9단계 — 실기 teleop
 
 팔로워를 실기로 띄운다. 활성화 때 양팔이 영점 자세까지 천천히 이동한다 — 관절당 최대
-0.5 rad/s 라 어디에 놓여 있어도 빠르게 돌지 않는다. 이동 경로의 공간은 비워 둔다.
+0.4 rad/s 라 어디에 놓여 있어도 빠르게 돌지 않는다. 이동 경로의 공간은 비워 둔다.
 
 ```bash
 ros2 launch openarm_follower launch.py use_fake_hardware:=false
 ```
 
 새 터미널에서 리더 relay 를 띄운다. 시작 보간 동안 팔로워가 리더 자세까지 이동한다 —
-관절당 최대 0.5 rad/s 라 멀수록 오래 걸린다. 이동 경로의 공간을 비워 둔다.
+관절당 최대 0.4 rad/s 라 멀수록 오래 걸린다. 이동 경로의 공간을 비워 둔다.
 
 ```bash
 ros2 launch openarm_leader teleop.launch.py source:=feetech
@@ -204,7 +204,7 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech
 URDF 가 양팔이라 두 팔의 하드웨어를 모두 연다. **`can0` 과 `can1` 이 둘 다 올라와 있어야
 한다** — 1단계를 두 인터페이스에 대해 해 둔다.
 
-teleop 을 끄고 demo 를 실기로 띄운다. 활성화 때 양팔이 영점 자세까지 관절당 최대 0.5 rad/s 로
+teleop 을 끄고 demo 를 실기로 띄운다. 활성화 때 양팔이 영점 자세까지 관절당 최대 0.4 rad/s 로
 이동한다. 이동 경로의 공간은 비워 둔다.
 
 ```bash
@@ -212,7 +212,7 @@ ros2 launch openarm_moveit demo.launch.py use_fake_hardware:=false
 ```
 
 새 터미널에서 예제를 하나씩 돌린다. 한 번에 하나씩만 — 예제 둘이 동시에 목표를 보내면 궤적이
-충돌한다. **예제는 계획한 궤적을 실제로 실행한다.** 계획 속도는 관절 한계의 30% 지만 팔이
+충돌한다. **예제는 계획한 궤적을 실제로 실행한다.** 계획 속도는 관절 한계의 25% 지만 팔이
 작업 영역을 크게 쓰므로(03 은 정사각형 경로, 04 는 집어 옮기기) 앞 공간을 비우고 비상 정지에
 손이 닿는 자리에 선다.
 

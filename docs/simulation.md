@@ -130,7 +130,7 @@ ros2 topic echo /left_forward_position_controller/commands
 `joint_limits_deg` 가 URDF 한계보다 좁게 잡혀 있어 relay 노드가 그 범위로 clamp 한다.
 
 노드를 띄운 직후에는 팔로워 팔이 슬라이더 자세로 곧장 뛰지 않고 최소 2초에 걸쳐 옮겨간다.
-시작 시점의 팔로워 자세에서 리더 자세로 보간하는 구간이고, 거리가 멀면 관절당 0.5 rad/s 를
+시작 시점의 팔로워 자세에서 리더 자세로 보간하는 구간이고, 거리가 멀면 관절당 0.4 rad/s 를
 넘지 않게 시간이 늘어난다. 그리퍼는 보간 없이 바로 따른다.
 
 ## 7단계 — MoveIt 역기구학

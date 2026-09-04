@@ -17,8 +17,8 @@ STEP_TOPIC = '/next_step'
 # 계획 궤적의 속도·가속도 상한 — 관절 한계(moveit_joint_limits.yaml)에 대한 비율.
 # 예제 전부가 이 값을 쓴다. 짧은 이동은 속도 상한에 닿지 못하고 끝나므로
 # 체감 속도를 바꾸려면 ACCELERATION_SCALING 을 건드려야 한다.
-VELOCITY_SCALING = 0.3
-ACCELERATION_SCALING = 0.5
+VELOCITY_SCALING = 0.25
+ACCELERATION_SCALING = 0.4
 
 # RViz MotionPlanning 패널의 goal state 를 로봇 현재 자세로 맞추는 신호.
 # 패널의 External Comm. 이 켜져 있어야 RViz 가 듣는다 (demo.rviz 에서 켜 둔다).

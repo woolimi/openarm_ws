@@ -31,7 +31,7 @@ arms:
 calibration:
   # 자세 이동은 forward_position_controller 로 보간해 보낸다.
   rate_hz: 30.0
-  move_speed: 0.3          # 관절 속도 상한 [rad/s]
+  move_speed: 0.25         # 관절 속도 상한 [rad/s]
   settle_sec: 2.5          # 자세 도착 후 진동이 잦아들기를 기다리는 시간
   sample_sec: 2.0          # 한 표본의 평균 구간
   static_speed: 0.02       # 이 속도 [rad/s] 아래여야 정지로 본다

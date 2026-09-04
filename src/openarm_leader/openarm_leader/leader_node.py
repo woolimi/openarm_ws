@@ -20,7 +20,7 @@ from openarm_leader.feetech import FeetechBus
 
 ARM_JOINT_COUNT = 7
 #: 시작 보간에서 관절이 넘지 않을 속도 [rad/s]. 리더가 멀리 있으면 보간 시간이 늘어난다.
-RAMP_MAX_SPEED = 0.5
+RAMP_MAX_SPEED = 0.4
 JOINT_KEYS = tuple(f'joint{index}' for index in range(1, ARM_JOINT_COUNT + 1))
 
 

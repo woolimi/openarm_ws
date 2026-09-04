@@ -8,9 +8,9 @@ move_group_name: left_arm
 
 command_in_type: unitless       # 입력이 [-1, 1] 무차원 (조이스틱처럼)
 scale:
-  linear: 0.15                  # unitless 1.0 → 0.15 m/s
-  rotational: 0.5               # unitless 1.0 → 0.5 rad/s
-  joint: 0.5
+  linear: 0.12                  # unitless 1.0 → 0.12 m/s
+  rotational: 0.4               # unitless 1.0 → 0.4 rad/s
+  joint: 0.4
 incoming_command_timeout: 0.1   # 이보다 오래된 명령은 버린다 [s]
 
 cartesian_command_in_topic: ~/delta_twist_cmds
