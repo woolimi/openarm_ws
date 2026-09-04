@@ -39,7 +39,8 @@ from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import Empty
 
 from openarm_moveit.robot import (
-    BASE_FRAME, GRIPPER_CLOSED, GRIPPER_MAX_EFFORT, GRIPPER_OPEN, STEP_TOPIC, Arm,
+    ACCELERATION_SCALING, BASE_FRAME, GRIPPER_CLOSED, GRIPPER_MAX_EFFORT,
+    GRIPPER_OPEN, RVIZ_GOAL_SYNC_TOPIC, STEP_TOPIC, VELOCITY_SCALING, Arm,
 )
 
 
@@ -117,14 +118,22 @@ class MoveGroupHelper:
         self._ik_client = node.create_client(GetPositionIK, '/compute_ik')
         self._fk_client = node.create_client(GetPositionFK, '/compute_fk')
 
+        # 실행이 끝날 때마다 RViz 의 goal state 를 로봇 자세로 끌어온다
+        self._goal_sync_pub = node.create_publisher(Empty, RVIZ_GOAL_SYNC_TOPIC, 1)
+
         # 계획 파라미터 — 예제마다 바꿔 쓴다
         self.planning_time = 5.0
         self.num_planning_attempts = 5
-        self.max_velocity_scaling = 0.5
-        self.max_acceleration_scaling = 0.5
+        self.max_velocity_scaling = VELOCITY_SCALING
+        self.max_acceleration_scaling = ACCELERATION_SCALING
 
     def _on_joint_state(self, msg: JointState):
         self._joint_state = msg
+
+    def sync_rviz_goal_state(self) -> None:
+        """RViz 의 goal state(파란 팔·interactive marker·Joints 탭 슬라이더)를
+        로봇의 현재 자세로 맞춘다. 실행 뒤 목표 표시가 옛 자리에 남지 않게 한다."""
+        self._goal_sync_pub.publish(Empty())
 
     # --- 준비 대기 ------------------------------------------------
     def wait_for_servers(self, timeout_sec: float = 10.0) -> bool:
@@ -249,6 +258,8 @@ class MoveGroupHelper:
         if code != MoveItErrorCodes.SUCCESS:
             self.logger.error(f'MoveGroup 실패 — error_code {code}')
             return False, None
+        if not plan_only:
+            self.sync_rviz_goal_state()
         return True, result.planned_trajectory
 
     # --- joint goal ----------------------------------------------------
@@ -373,6 +384,7 @@ class MoveGroupHelper:
         if code != MoveItErrorCodes.SUCCESS:
             self.logger.error(f'궤적 실행 실패 — error_code {code}')
             return False
+        self.sync_rviz_goal_state()
         return True
 
 

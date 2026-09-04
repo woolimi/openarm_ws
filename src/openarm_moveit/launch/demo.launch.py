@@ -1,9 +1,10 @@
 """OpenArm v1.0 MoveIt demo 를 mock hardware 위에 띄운다.
 
-업스트림 openarm_bimanual_moveit_config 의 v1.0 구성을 그대로 쓰되, 이 패키지의 파일 넷으로 바꿔 조립한다.
+업스트림 openarm_bimanual_moveit_config 의 v1.0 구성을 그대로 쓰되, 이 패키지의 파일 다섯으로 바꿔 조립한다.
   - config/openarm_bimanual.srdf — 충돌 제외 쌍에 Never(절대 닿지 않는 쌍)를 더한 SRDF
   - config/moveit_joint_limits.yaml — acceleration 한계를 채운 관절 한계
   - config/controllers.yaml — 그리퍼를 GripperActionController 로 두어 MoveIt 의 GripperCommand 와 맞춘다
+  - config/ompl_planning.yaml — 그룹별 OMPL planner 목록(RViz Planning Library 드롭다운)
   - config/demo.rviz — MotionPlanning 패널에 예제 마커 display 를 더한 RViz 설정
 
     ros2 launch openarm_moveit demo.launch.py [rviz_config:=<.rviz 경로>]
@@ -87,6 +88,12 @@ def moveit_nodes(context):
         .to_moveit_configs()
     )
     moveit_params = moveit_config.to_dict()
+
+    # planner 정의 24종은 moveit_configs_utils 기본값으로 들어온다.
+    # 그룹별로 어떤 planner 를 쓸지는 이 패키지 파일이 정한다.
+    ompl_path = os.path.join(demo_path, 'config', 'ompl_planning.yaml')
+    with open(ompl_path, 'r', encoding='utf-8') as handle:
+        moveit_params['ompl'].update(yaml.safe_load(handle))
 
     pilz_path = os.path.join(
         moveit_path, 'config', CONFIG_DIR, 'pilz_cartesian_limits.yaml')

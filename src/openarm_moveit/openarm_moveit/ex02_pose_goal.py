@@ -52,7 +52,6 @@ class PoseGoalDemo(Node):
 
     def run(self):
         helper = MoveGroupHelper(self, self.arm)
-        helper.max_velocity_scaling = 0.3
         helper.planning_time = 10.0
 
         if not helper.wait_for_servers(timeout_sec=30.0):

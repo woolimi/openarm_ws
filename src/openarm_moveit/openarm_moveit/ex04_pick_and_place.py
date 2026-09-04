@@ -56,7 +56,6 @@ class PickAndPlaceDemo(Node):
     def run(self):
         arm = MoveGroupHelper(self, self.arm)
         gripper = GripperHelper(self, self.arm)
-        arm.max_velocity_scaling = 0.3
         arm.planning_time = 10.0
 
         if not arm.wait_for_servers(timeout_sec=30.0) or not gripper.wait_for_server(timeout_sec=30.0):

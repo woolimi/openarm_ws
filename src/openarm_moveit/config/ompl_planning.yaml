@@ -1,0 +1,63 @@
+# MoveIt demo 용 OMPL group 설정. planner 정의(planner_configs)는 moveit_configs_utils 의
+# ompl_defaults.yaml 이 담당하고, 이 파일은 그룹별로 쓸 planner 목록만 고른다.
+# 이 목록이 있어야 planner 이름이 `그룹명[planner]` 로 등록되어
+# RViz MotionPlanning 패널의 Planning Library 드롭다운에 뜬다.
+#
+#   RRTConnect  — 양방향 트리 탐색, 가장 빠름 (기본값)
+#   RRT         — 단방향 트리, 탐색 방향을 조절할 때
+#   PRM         — 확률적 로드맵, 같은 환경에서 반복 계획할 때
+#   EST         — 확장 공간 트리, 좁은 통로 환경
+#   KPIECE 계열 — 경계 분할 기반 탐색, 고차원 공간에서 빠른 해가 필요할 때
+#                 (KPIECE 단방향 / BKPIECE 양방향 / LBKPIECE 지연 충돌검사)
+
+left_arm:
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTConnect
+    - RRT
+    - PRM
+    - EST
+    - KPIECE
+    - BKPIECE
+    - LBKPIECE
+  projection_evaluator: joints(openarm_left_joint1,openarm_left_joint2)
+  longest_valid_segment_fraction: 0.005
+
+right_arm:
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTConnect
+    - RRT
+    - PRM
+    - EST
+    - KPIECE
+    - BKPIECE
+    - LBKPIECE
+  projection_evaluator: joints(openarm_right_joint1,openarm_right_joint2)
+  longest_valid_segment_fraction: 0.005
+
+left_gripper:
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTConnect
+    - RRT
+    - PRM
+    - EST
+    - KPIECE
+    - BKPIECE
+    - LBKPIECE
+  projection_evaluator: joints(openarm_left_finger_joint1)
+  longest_valid_segment_fraction: 0.005
+
+right_gripper:
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTConnect
+    - RRT
+    - PRM
+    - EST
+    - KPIECE
+    - BKPIECE
+    - LBKPIECE
+  projection_evaluator: joints(openarm_right_finger_joint1)
+  longest_valid_segment_fraction: 0.005

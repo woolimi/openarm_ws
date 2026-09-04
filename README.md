@@ -129,6 +129,7 @@ source install/setup.bash
 
 | 명령 | 내용 |
 | --- | --- |
+| `ros2 launch openarm_moveit display.launch.py` | URDF 형상만 RViz 로 — 컨트롤러 없이 슬라이더로 관절을 움직인다 |
 | `ros2 launch openarm_moveit demo.launch.py` | MoveIt demo + 예제용 RViz |
 | `ros2 run openarm_moveit ex01_joint_goal` | 관절 하나씩 움직이기 — MoveGroup 액션, JointConstraint |
 | `ros2 run openarm_moveit ex02_pose_goal` | 손끝 자세 지령 — PositionConstraint·OrientationConstraint, IK |
@@ -145,6 +146,10 @@ ros2 topic pub --once /next_step std_msgs/msg/Empty '{}'
 
 설정은 `openarm_moveit/robot.py`(프레임·planning group·이름 붙은 자세·손끝 방향) 와
 `config/`(SRDF·관절 한계·컨트롤러·RViz·Servo) 에 있다.
+
+`display.launch.py` 는 업스트림 `openarm_description` 의 `display_openarm.launch.py` 를 감싼 것이다.
+업스트림 기본값은 `arm_type` 이 v2.0 이라 그대로 부르면 다른 로봇이 뜬다. 이 launch 는 v1.0 을 박아
+두었으므로 인자 없이 부르면 된다. 한 팔만 보려면 `bimanual:=false` 를 준다.
 
 ## config/leader.yaml
 

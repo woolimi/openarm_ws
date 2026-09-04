@@ -64,7 +64,6 @@ class JointGoalDemo(Node):
 
     def run(self):
         helper = MoveGroupHelper(self, self.arm)
-        helper.max_velocity_scaling = 0.3          # 천천히 움직여 관찰
 
         if not helper.wait_for_servers(timeout_sec=30.0):
             return

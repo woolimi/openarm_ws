@@ -105,7 +105,6 @@ class KeyboardServoNode(Node):
         self._reset_twist()
         self.pause_servo(True)
         helper = MoveGroupHelper(self, self.arm)
-        helper.max_velocity_scaling = 0.3
         if helper.wait_for_servers(timeout_sec=30.0) and helper.wait_for_joint_state(timeout_sec=10.0):
             helper.go_to_named('ready')
         self.pause_servo(False)

@@ -168,6 +168,8 @@ class MarkerBoard:
         markers = [self.line(f'{ns}_line', 0, points, color), self.dots(f'{ns}_dots', 0, points, color)]
         if label and points:
             markers.append(self.sphere(f'{ns}_start', 0, points[0], YELLOW))
+            # 라벨은 경로 중간에. 시작점에 붙이면 같은 점에서 출발하는 경로끼리 글씨가 포개진다.
+            mid = points[len(points) // 2]
             markers.append(self.text(f'{ns}_label', 0,
-                                     (points[0][0], points[0][1], points[0][2] + 0.06), label))
+                                     (mid[0], mid[1], mid[2] + 0.06), label))
         self.put(*markers)
