@@ -186,7 +186,7 @@ class KeyboardServoNode(Node):
             self.board.put(*markers)
 
     # --- 창 --------------------------------------------------------------------
-    def draw(self, screen, font, busy: str = '') -> None:
+    def draw(self, screen, font, focused: bool = True, busy: str = '') -> None:
         screen.fill(BG)
 
         def put(row, text, color=FG, indent=0):
@@ -207,7 +207,7 @@ class KeyboardServoNode(Node):
 
         state = 'READY' if self._servo_ready else 'NOT READY'
         put(12, f'Servo {state} | 상태: {STATUS_TEXT.get(self._status, self._status)}')
-        if not pygame.key.get_focused():
+        if not focused:
             put(13, '창이 포커스를 잃었습니다 — 클릭하면 다시 받습니다', WARN)
         elif self._halted:
             put(13, '정지 — 방향키를 모두 떼면 풀립니다', WARN)
@@ -229,19 +229,20 @@ class KeyboardServoNode(Node):
                     elif event.key == pygame.K_r:
                         self._reset_twist()
                         self.publish_twist()
-                        self.draw(screen, font, '*** ready 자세 복귀 중 ***')
+                        self.draw(screen, font, busy='*** ready 자세 복귀 중 ***')
                         self.go_ready()
 
-            if pygame.key.get_focused():
-                mods = pygame.key.get_mods()
-                self.apply_keys(pygame.key.get_pressed(), bool(mods & pygame.KMOD_SHIFT))
+            focused = pygame.key.get_focused()
+            if focused:
+                shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+                self.apply_keys(pygame.key.get_pressed(), shift)
             else:
                 # 창 밖에서 친 키가 팔을 움직이면 안 된다.
                 self._reset_twist()
 
             self.publish_twist()
             rclpy.spin_once(self, timeout_sec=0.0)   # status 구독 · 마커 타이머 처리
-            self.draw(screen, font)
+            self.draw(screen, font, focused)
             clock.tick(LOOP_HZ)
 
         self._reset_twist()
