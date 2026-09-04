@@ -97,6 +97,20 @@ class StepTrigger:
 #  MoveGroupHelper — 팔 하나
 # ------------------------------------------------------------------
 
+def error_name(code: int) -> str:
+    """MoveIt error_code 를 이름과 함께 읽을 수 있게 만든다.
+
+    숫자만 찍으면 매번 헤더를 뒤져야 한다. 자주 보게 되는 것들:
+    -1 PLANNING_FAILED, -10 START_STATE_IN_COLLISION, -12 GOAL_IN_COLLISION,
+    -26 START_STATE_INVALID(현재 자세가 관절 한계 밖 — 실기에서 흔하다),
+    -31 NO_IK_SOLUTION.
+    """
+    for name, value in vars(MoveItErrorCodes).items():
+        if name.isupper() and value == code:
+            return f'{code} ({name})'
+    return str(code)
+
+
 class MoveGroupHelper:
     """MoveGroup 액션과 관련 서비스를 감싼다. 팔 하나(Arm)를 다룬다."""
 
@@ -256,7 +270,7 @@ class MoveGroupHelper:
 
         code = result.error_code.val
         if code != MoveItErrorCodes.SUCCESS:
-            self.logger.error(f'MoveGroup 실패 — error_code {code}')
+            self.logger.error(f'MoveGroup 실패 — error_code {error_name(code)}')
             return False, None
         if not plan_only:
             self.sync_rviz_goal_state()
@@ -382,7 +396,7 @@ class MoveGroupHelper:
         rclpy.spin_until_future_complete(self.node, result_future)
         code = result_future.result().result.error_code.val
         if code != MoveItErrorCodes.SUCCESS:
-            self.logger.error(f'궤적 실행 실패 — error_code {code}')
+            self.logger.error(f'궤적 실행 실패 — error_code {error_name(code)}')
             return False
         self.sync_rviz_goal_state()
         return True

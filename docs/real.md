@@ -242,3 +242,9 @@ ros2 run openarm_moveit ex05_keyboard_servo
 
 **확인** — 시뮬레이션과 같은 출력이 찍히고, RViz 의 팔이 아니라 실물이 그대로 움직인다. 계획은
 성공하는데 실물이 지령 자세보다 아래에 멈추면 중력보상이 안 실린 것이다 — 8단계를 다시 본다.
+
+`error_code -26 (START_STATE_INVALID)` 로 전부 실패하면 지금 팔의 어느 관절이 한계 밖이라는
+뜻이다. 어느 관절인지는 `openarm-can-cli -i can1 monitor` 로 위치를 읽어 URDF 한계와 대보면
+안다. 팔꿈치(joint4)와 그리퍼처럼 아래 한계가 0 인 관절은 영점에 서 있는 것만으로 엔코더 값이
+1e-4 rad 쯤 음수가 되는데, 그만큼은 `config/moveit_joint_limits.yaml` 이 이미 넓혀 두었다.
+그보다 크게 벗어나 있으면 영점이 어긋난 것이므로 3단계를 다시 한다.

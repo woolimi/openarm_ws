@@ -1,10 +1,17 @@
 # MoveIt demo 용 관절 한계. 속도는 업스트림 openarm_v1.0 값이고,
 # time parameterization(TOTG)이 요구하는 acceleration 한계를 채워 넣었다.
+#
+# joint4 와 finger_joint1 은 URDF 아래 한계가 정확히 0 이고 기구적 영점도 거기다. 실기에서는
+# 그 자리에 서 있는 팔의 엔코더 값이 1e-4 rad 쯤 음수로 읽혀 MoveIt 이 시작 자세를 한계 밖으로
+# 보고 계획을 거부한다(error_code -26, START_STATE_INVALID). 그래서 그 두 관절만 아래로 아주
+# 조금 넓힌다 — 엔코더 잡음의 50배이면서 기구 스토퍼를 밀 만큼은 아닌 폭이다.
 default_velocity_scaling_factor: 0.1
 default_acceleration_scaling_factor: 0.1
 
 joint_limits:
   openarm_left_finger_joint1:
+    min_position: -0.001
+    max_position: 0.044
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
@@ -25,6 +32,8 @@ joint_limits:
     has_acceleration_limits: true
     max_acceleration: 10.0
   openarm_left_joint4:
+    min_position: -0.01
+    max_position: 2.443461
     has_velocity_limits: true
     max_velocity: 5.445426
     has_acceleration_limits: true
@@ -45,6 +54,8 @@ joint_limits:
     has_acceleration_limits: true
     max_acceleration: 10.0
   openarm_right_finger_joint1:
+    min_position: -0.001
+    max_position: 0.044
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
@@ -65,6 +76,8 @@ joint_limits:
     has_acceleration_limits: true
     max_acceleration: 10.0
   openarm_right_joint4:
+    min_position: -0.01
+    max_position: 2.443461
     has_velocity_limits: true
     max_velocity: 5.445426
     has_acceleration_limits: true
