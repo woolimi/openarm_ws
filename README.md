@@ -53,7 +53,7 @@ source install/setup.bash
 | 문서 | 내용 |
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
-| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop |
+| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop 과 MoveIt 예제 |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
 
@@ -126,8 +126,9 @@ source install/setup.bash
 
 ## openarm_moveit 예제
 
-`demo.launch.py` 가 mock hardware · move_group · 컨트롤러 · RViz 를 한 번에 띄우고, `servo.launch.py` 는
-그 위에 `moveit_servo` 노드를 더한다. 예제는 그 위에서 돈다. 모든 예제는 `arm:=left|right` 파라미터로
+`demo.launch.py` 가 하드웨어 · move_group · 컨트롤러 · RViz 를 한 번에 띄우고, `servo.launch.py` 는
+그 위에 `moveit_servo` 노드를 더한다. 둘 다 `use_fake_hardware:=false` 면 mock 대신 CAN-FD 실기를
+잡고, 그때 중력보상 값은 `openarm_follower` 의 `config/follower.yaml` 에서 온다. 예제는 그 위에서 돈다. 모든 예제는 `arm:=left|right` 파라미터로
 팔을 고른다(기본 `left`). 예제는 한 번에 하나만 돌린다 — 둘이 동시에 목표를 보내면 궤적이 충돌한다.
 
 | 명령 | 내용 |
@@ -149,6 +150,16 @@ ros2 topic pub --once /next_step std_msgs/msg/Empty '{}'
 
 설정은 `openarm_moveit/robot.py`(프레임·planning group·이름 붙은 자세·손끝 방향) 와
 `config/`(SRDF·관절 한계·컨트롤러·RViz·Servo) 에 있다.
+
+### demo.launch.py · servo.launch.py 인자
+
+| 인자 | 기본값 | 내용 |
+| --- | --- | --- |
+| `use_fake_hardware` | `true` | `true` 는 mock hardware, `false` 는 CAN-FD 실기 |
+| `rviz_config` | 설치된 `demo.rviz` | RViz 설정 파일 |
+| `left_can_interface` | `can1` | 왼팔 CAN 인터페이스. `demo.launch.py` 전용 |
+| `right_can_interface` | `can0` | 오른팔 CAN 인터페이스. `demo.launch.py` 전용 |
+| `config_file` | 설치된 `follower.yaml` | 중력보상 설정 파일. `demo.launch.py` 전용 |
 
 `display.launch.py` 는 업스트림 `openarm_description` 의 `display_openarm.launch.py` 를 감싼 것이다.
 업스트림 기본값은 `arm_type` 이 v2.0 이라 그대로 부르면 다른 로봇이 뜬다. 이 launch 는 v1.0 을 박아

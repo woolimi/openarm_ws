@@ -82,11 +82,17 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('arm', default_value='left', choices=['left', 'right'],
                               description='Servo 로 움직일 팔'),
+        DeclareLaunchArgument('use_fake_hardware', default_value='true',
+                              choices=['true', 'false'],
+                              description='true 는 mock_components, false 는 CAN-FD 실기.'),
         DeclareLaunchArgument('rviz_config', default_value=demo_rviz,
                               description='RViz 설정 파일'),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(demo_launch),
-            launch_arguments={'rviz_config': LaunchConfiguration('rviz_config')}.items(),
+            launch_arguments={
+                'rviz_config': LaunchConfiguration('rviz_config'),
+                'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
+            }.items(),
         ),
         OpaqueFunction(function=servo_node),
     ])

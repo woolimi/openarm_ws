@@ -1,4 +1,4 @@
-"""OpenArm v1.0 MoveIt demo 를 mock hardware 위에 띄운다.
+"""OpenArm v1.0 MoveIt demo 를 mock hardware 또는 CAN-FD 실기 위에 띄운다.
 
 업스트림 openarm_bimanual_moveit_config 의 v1.0 구성을 그대로 쓰되, 이 패키지의 파일 다섯으로 바꿔 조립한다.
   - config/openarm_bimanual.srdf — 충돌 제외 쌍에 Never(절대 닿지 않는 쌍)를 더한 SRDF
@@ -8,6 +8,10 @@
   - config/demo.rviz — MotionPlanning 패널에 예제 마커 display 를 더한 RViz 설정
 
     ros2 launch openarm_moveit demo.launch.py [rviz_config:=<.rviz 경로>]
+    ros2 launch openarm_moveit demo.launch.py use_fake_hardware:=false
+
+실기로 띄우면 중력보상 값(openarm_follower 의 config/follower.yaml)을 하드웨어 블록에 실어
+팔로워 bringup 과 같은 보상 아래에서 돈다.
 """
 
 import os
@@ -29,12 +33,21 @@ from moveit_configs_utils import MoveItConfigsBuilder
 from openarm_leader import stale_processes
 
 CONFIG_DIR = 'openarm_v1.0'
-XACRO_MAPPINGS = {
-    'arm_type': 'v1.0',
-    'bimanual': 'true',
-    'use_fake_hardware': 'true',
-    'ros2_control': 'true',
-}
+
+
+def xacro_mappings(context):
+    """이 실행의 xacro 인자. 로봇과 bimanual 은 고정이고 하드웨어만 인자로 고른다."""
+    return {
+        'arm_type': 'v1.0',
+        'bimanual': 'true',
+        'ros2_control': 'true',
+        'use_fake_hardware':
+            LaunchConfiguration('use_fake_hardware').perform(context),
+        'left_can_interface':
+            LaunchConfiguration('left_can_interface').perform(context),
+        'right_can_interface':
+            LaunchConfiguration('right_can_interface').perform(context),
+    }
 
 
 def cleanup_previous_session(_context):
@@ -52,8 +65,15 @@ def moveit_nodes(context):
     xacro_path = os.path.join(
         description_path, 'assets', 'robot', CONFIG_DIR,
         'urdf', 'openarm_v10.urdf.xacro')
-    robot_description = xacro.process_file(
-        xacro_path, mappings=XACRO_MAPPINGS).toprettyxml(indent='  ')
+    mappings = xacro_mappings(context)
+    document = xacro.process_file(xacro_path, mappings=mappings)
+    # 실측 중력보상 값은 ros2_control 블록에만 들어간다. move_group 은 그 블록을 읽지
+    # 않으므로 아래 MoveItConfigsBuilder 가 다시 만드는 문서에는 없어도 된다.
+    config_file = LaunchConfiguration('config_file').perform(context)
+    if config_file:
+        from openarm_follower.hardware_params import inject
+        inject(document, config_file)
+    robot_description = document.toprettyxml(indent='  ')
     controllers_file = os.path.join(demo_path, 'config', 'controllers.yaml')
 
     robot_state_publisher = Node(
@@ -73,7 +93,7 @@ def moveit_nodes(context):
     moveit_config = (
         MoveItConfigsBuilder(
             'openarm', package_name='openarm_bimanual_moveit_config')
-        .robot_description(file_path=xacro_path, mappings=XACRO_MAPPINGS)
+        .robot_description(file_path=xacro_path, mappings=mappings)
         .robot_description_semantic(
             file_path=os.path.join(demo_path, 'config', 'openarm_bimanual.srdf'))
         .robot_description_kinematics(
@@ -125,9 +145,27 @@ def moveit_nodes(context):
 def generate_launch_description():
     default_rviz = os.path.join(
         get_package_share_directory('openarm_moveit'), 'config', 'demo.rviz')
-    rviz_config_arg = DeclareLaunchArgument(
-        'rviz_config', default_value=default_rviz,
-        description='RViz 설정 파일')
+    default_config = os.path.join(
+        get_package_share_directory('openarm_follower'), 'config',
+        'follower.yaml')
+    declared_arguments = [
+        DeclareLaunchArgument(
+            'rviz_config', default_value=default_rviz,
+            description='RViz 설정 파일'),
+        DeclareLaunchArgument(
+            'use_fake_hardware', default_value='true',
+            choices=['true', 'false'],
+            description='true 는 mock_components, false 는 CAN-FD 실기.'),
+        DeclareLaunchArgument(
+            'left_can_interface', default_value='can1',
+            description='왼팔 CAN 인터페이스. 실기에서만 쓴다.'),
+        DeclareLaunchArgument(
+            'right_can_interface', default_value='can0',
+            description='오른팔 CAN 인터페이스. 실기에서만 쓴다.'),
+        DeclareLaunchArgument(
+            'config_file', default_value=default_config,
+            description='중력보상 설정 파일. 하드웨어 블록의 값이 여기서 온다.'),
+    ]
     jsb_spawner = Node(
         package='controller_manager',
         executable='spawner',
@@ -147,8 +185,7 @@ def generate_launch_description():
         arguments=['left_gripper_controller', 'right_gripper_controller',
                    '-c', '/controller_manager'],
     )
-    return LaunchDescription([
-        rviz_config_arg,
+    return LaunchDescription(declared_arguments + [
         OpaqueFunction(function=cleanup_previous_session),
         OpaqueFunction(function=moveit_nodes),
         TimerAction(period=2.0, actions=[jsb_spawner]),

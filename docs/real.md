@@ -194,3 +194,51 @@ ros2 launch openarm_leader teleop.launch.py source:=feetech
 ```
 
 **확인** — 시작 보간이 끝나면 리더암을 움직이는 대로 실물 팔로워가 따라온다.
+
+## 10단계 — 실기 MoveIt 예제
+
+시뮬레이션 실습 [8·9단계](simulation.md)의 예제 다섯을 실물에서 그대로 돌린다. 코드도 명령도
+같고, 바뀌는 것은 launch 인자 하나다. 실기로 띄우면 중력보상 값이 하드웨어 블록에 실려
+팔로워 bringup 과 같은 보상 아래에서 돈다.
+
+URDF 가 양팔이라 두 팔의 하드웨어를 모두 연다. **`can0` 과 `can1` 이 둘 다 올라와 있어야
+한다** — 1단계를 두 인터페이스에 대해 해 둔다.
+
+teleop 을 끄고 demo 를 실기로 띄운다. 활성화 때 양팔이 영점 자세까지 관절당 최대 0.5 rad/s 로
+이동한다. 이동 경로의 공간은 비워 둔다.
+
+```bash
+ros2 launch openarm_moveit demo.launch.py use_fake_hardware:=false
+```
+
+새 터미널에서 예제를 하나씩 돌린다. 한 번에 하나씩만 — 예제 둘이 동시에 목표를 보내면 궤적이
+충돌한다. **예제는 계획한 궤적을 실제로 실행한다.** 계획 속도는 관절 한계의 30% 지만 팔이
+작업 영역을 크게 쓰므로(03 은 정사각형 경로, 04 는 집어 옮기기) 앞 공간을 비우고 비상 정지에
+손이 닿는 자리에 선다.
+
+```bash
+ros2 run openarm_moveit ex01_joint_goal
+ros2 run openarm_moveit ex02_pose_goal
+ros2 run openarm_moveit ex03_cartesian_path
+ros2 run openarm_moveit ex04_pick_and_place
+```
+
+02~04 는 단계마다 `/next_step` 신호를 기다린다. 세 번째 터미널에서 한 단계씩 넘긴다 — 실물에서는
+이 신호가 곧 "다음 동작을 지금 해도 되는가" 라, 매번 팔 주변을 보고 누른다.
+
+```bash
+ros2 topic pub --once /next_step std_msgs/msg/Empty '{}'
+```
+
+키보드 teleop 은 Servo 노드를 포함한 launch 로 다시 띄운다.
+
+```bash
+ros2 launch openarm_moveit servo.launch.py use_fake_hardware:=false
+```
+
+```bash
+ros2 run openarm_moveit ex05_keyboard_servo
+```
+
+**확인** — 시뮬레이션과 같은 출력이 찍히고, RViz 의 팔이 아니라 실물이 그대로 움직인다. 계획은
+성공하는데 실물이 지령 자세보다 아래에 멈추면 중력보상이 안 실린 것이다 — 8단계를 다시 본다.

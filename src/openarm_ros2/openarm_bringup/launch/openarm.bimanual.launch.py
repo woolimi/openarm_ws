@@ -15,7 +15,6 @@
 
 import os
 import xacro
-import yaml
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -46,63 +45,6 @@ def resolve_arm_config(arm_type_str: str) -> tuple[str, str]:
     if any(x in arm_type_str for x in ("1.0", "10", "1_0")):
         return "openarm_v1.0", "openarm_v10.urdf.xacro"
     return "openarm_v2.0", "openarm_v20.urdf.xacro"
-
-
-#: Hardware params the description cannot know: they are measured per robot.
-#: Whole-robot values sit at the top level of the yaml, per-arm values under
-#: arms.<arm>. The names are the ones OpenArmHW reads.
-ROBOT_HARDWARE_PARAMS = ("gravity_comp", "root_link", "saturation_cap")
-ARM_HARDWARE_PARAMS = ("tip_link", "payload_mass", "payload_com", "tau_bias")
-
-
-def format_hardware_param(value):
-    """Render a yaml value the way OpenArmHW parses it: a list becomes the
-    space-separated numbers its istringstream reads, everything else its
-    lower-case text (the plugin compares booleans as "true"/"1"/"on")."""
-    if isinstance(value, (list, tuple)):
-        return " ".join(f"{float(v):.6g}" for v in value)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return str(value)
-
-
-def inject_hardware_params(document, config_path):
-    """Add the measured params to every OpenArmHW <hardware> block in place.
-
-    The ros2_control xacro lives in openarm_description, which this workspace
-    pulls from upstream and does not edit, so the values are added to the
-    generated document instead. Blocks are matched by their plugin, so a mock
-    hardware run is left untouched, and the arm is picked by the block's own
-    arm_prefix, so the left arm can never be handed the right arm's payload.
-    """
-    with open(config_path, "r", encoding="utf-8") as handle:
-        config = yaml.safe_load(handle) or {}
-    arms = config.get("arms") or {}
-
-    for hardware in document.getElementsByTagName("hardware"):
-        plugins = hardware.getElementsByTagName("plugin")
-        if not plugins or not plugins[0].firstChild:
-            continue
-        if plugins[0].firstChild.data.strip() != "openarm_hardware/OpenArmHW":
-            continue
-
-        params = {}
-        for node in hardware.getElementsByTagName("param"):
-            if node.firstChild:
-                params[node.getAttribute("name")] = node.firstChild.data.strip()
-        arm = params.get("arm_prefix", "").rstrip("_")
-        values = {key: config[key]
-                  for key in ROBOT_HARDWARE_PARAMS if key in config}
-        values.update({key: (arms.get(arm) or {})[key]
-                       for key in ARM_HARDWARE_PARAMS
-                       if key in (arms.get(arm) or {})})
-
-        for name, value in values.items():
-            element = document.createElement("param")
-            element.setAttribute("name", name)
-            element.appendChild(
-                document.createTextNode(format_hardware_param(value)))
-            hardware.appendChild(element)
 
 
 def namespace_from_context(context, arm_prefix):
@@ -143,7 +85,10 @@ def generate_robot_description(context: LaunchContext, description_package, desc
     )
 
     if hardware_config_file_str:
-        inject_hardware_params(document, hardware_config_file_str)
+        # The measured per-robot values live with the config file that holds
+        # them; importing here keeps this launch usable without that package.
+        from openarm_follower.hardware_params import inject
+        inject(document, hardware_config_file_str)
 
     return document.toprettyxml(indent="  ")
 
