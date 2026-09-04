@@ -53,7 +53,7 @@ source install/setup.bash
 | 문서 | 내용 |
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
-| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워·리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop |
+| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
 
@@ -69,7 +69,7 @@ source install/setup.bash
 | `ros2 run openarm_leader calibrate` | 리더암 영점·그리퍼 범위 캘리브레이션 |
 | `ros2 run openarm_follower calibrate_gravity` | 중력보상 페이로드·토크 오프셋 실측 |
 
-팔로워(OpenArm 본체) 쪽 모터 스캔은 업스트림 `openarm-can-cli` 가 맡는다.
+팔로워(OpenArm 본체) 쪽 모터 스캔과 영점은 업스트림 `openarm-can-cli` 가 맡는다 — `discover` 로 버스를 훑고 `set_zero` 로 지금 자세를 0 rad 으로 굽는다.
 
 ## openarm_leader 노드 인터페이스
 
