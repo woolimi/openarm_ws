@@ -421,7 +421,7 @@ class GripperHelper:
         return True
 
     def move(self, position: float, max_effort: float = GRIPPER_MAX_EFFORT) -> bool:
-        """finger_joint1 을 position[m] 으로. 0 이 닫힘, 0.044 가 열림."""
+        """finger_joint1 을 position[m] 으로. 0 이 닫힘, GRIPPER_TRAVEL 이 활짝 열림."""
         goal = GripperCommand.Goal()
         goal.command.position = position
         goal.command.max_effort = max_effort

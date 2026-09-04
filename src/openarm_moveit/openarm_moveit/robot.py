@@ -31,8 +31,11 @@ RVIZ_GOAL_SYNC_TOPIC = '/rviz/moveit/update_goal_state'
 TOOL_DOWN = (math.pi, -0.5, 0.0)
 TOOL_FORWARD = (0.0, -1.0, math.pi)
 
-# 그리퍼 finger_joint1 의 위치 [m]. 0 이 닫힘, 0.044 가 활짝 열림 (URDF 한계).
-GRIPPER_OPEN = 0.044
+# 그리퍼 finger_joint1 의 위치 [m]. 0 이 닫힘, GRIPPER_TRAVEL 이 활짝 열림 (URDF 한계).
+GRIPPER_TRAVEL = 0.044
+# 예제가 여는 폭은 한계의 80% 다. 끝까지 열면 손가락이 기구 스토퍼에 닿은 채로 모터가 계속
+# 밀고, 예제가 집는 물체에 그만큼의 폭이 필요하지도 않다.
+GRIPPER_OPEN = GRIPPER_TRAVEL * 0.8
 GRIPPER_CLOSED = 0.0
 GRIPPER_MAX_EFFORT = 10.0
 
