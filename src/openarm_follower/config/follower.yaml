@@ -1,5 +1,5 @@
 # 팔로워(OpenArm 본체) 설정. 중력보상에 필요한 모든 값의 단일 진실 공급원이다.
-# arms.<arm>.payload_mass·payload_com·tau_bias 는 `ros2 run openarm_follower calibrate` 가 갱신한다.
+# arms.<arm>.payload_mass·payload_com·tau_bias 는 `ros2 run openarm_follower calibrate_gravity` 가 갱신한다.
 
 # 관절 토크에 모델 중력 G(q) 를 더해 팔 무게를 모터가 들게 한다. 끄면 위치 게인만으로
 # 무게를 버티므로 지령 사이에서 팔이 쳐진다.

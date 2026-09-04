@@ -14,10 +14,12 @@
 오른팔은 `can0`, 왼팔은 `can1` 이다. 쓰는 팔의 인터페이스를 올린다.
 
 ```bash
+sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
 sudo ip link set can1 type can bitrate 1000000 dbitrate 5000000 fd on
 ```
 
 ```bash
+sudo ip link set up can0
 sudo ip link set up can1
 ```
 
@@ -134,7 +136,7 @@ ros2 launch openarm_follower launch.py use_fake_hardware:=false
 **팔이 지나갈 공간을 비우고 비상 정지에 손이 닿는 자리에 선다.**
 
 ```bash
-ros2 run openarm_follower calibrate
+ros2 run openarm_follower calibrate_gravity
 ```
 
 **확인** — 팔마다 `payload_mass`, `payload_com`, `tau_bias` 와 잔차 RMS 가 찍힌다. 잔차가

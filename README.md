@@ -67,7 +67,7 @@ source install/setup.bash
 | `ros2 run openarm_leader register` | 서보 id 스캔·배정 |
 | `ros2 run openarm_leader check` | 서보 응답 확인, 관절 매핑 실시간 표시 |
 | `ros2 run openarm_leader calibrate` | 리더암 영점·그리퍼 범위 캘리브레이션 |
-| `ros2 run openarm_follower calibrate` | 중력보상 페이로드·토크 오프셋 실측 |
+| `ros2 run openarm_follower calibrate_gravity` | 중력보상 페이로드·토크 오프셋 실측 |
 
 팔로워(OpenArm 본체) 쪽 모터 스캔은 업스트림 `openarm-can-cli` 가 맡는다.
 

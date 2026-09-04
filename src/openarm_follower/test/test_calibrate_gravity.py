@@ -11,7 +11,7 @@ from ament_index_python.packages import get_package_share_directory
 import numpy as np
 
 from openarm_follower.calib_poses import HOME_POSE, poses_for_arm
-from openarm_follower.calibrate import measure_arm, validate
+from openarm_follower.calibrate_gravity import measure_arm, validate
 from openarm_follower.gravity_model import GravityModel, solve
 
 import pytest

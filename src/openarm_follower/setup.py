@@ -23,7 +23,7 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
-            'calibrate = openarm_follower.calibrate:main',
+            'calibrate_gravity = openarm_follower.calibrate_gravity:main',
         ],
     },
 )

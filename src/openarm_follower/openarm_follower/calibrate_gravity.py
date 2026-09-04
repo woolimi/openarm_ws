@@ -3,9 +3,9 @@
 정지한 팔의 관절 토크에서 모델 중력을 빼면 모델이 모르는 것만 남는다. 그 잔차를
 자세 아홉 개에서 모아 손끝 점질량(질량·무게중심)과 관절별 상수 오프셋을 함께 푼다.
 
-    ros2 run openarm_follower calibrate                 # 양팔
-    ros2 run openarm_follower calibrate --arm left      # 한 팔만
-    ros2 run openarm_follower calibrate --dry-run       # 재기만 하고 저장 안 함
+    ros2 run openarm_follower calibrate_gravity              # 양팔
+    ros2 run openarm_follower calibrate_gravity --arm left   # 한 팔만
+    ros2 run openarm_follower calibrate_gravity --dry-run    # 재기만 하고 저장 안 함
 
 실기에서만 뜻이 있다. mock hardware 는 토크를 0 으로 내므로 잴 것이 없다.
 """
@@ -129,7 +129,7 @@ class FollowerArm(Node):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        prog='calibrate',
+        prog='calibrate_gravity',
         description='중력보상 캘리브레이션. 자세를 돌며 재고 follower.yaml 에 적는다.')
     parser.add_argument(
         '--arm', choices=['left', 'right'],
