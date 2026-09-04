@@ -19,6 +19,7 @@
   <depend>tf2_ros</depend>
   <depend>tf_transformations</depend>
   <depend>python3-transforms3d</depend>
+  <depend>python3-pygame</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

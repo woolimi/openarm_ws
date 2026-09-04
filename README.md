@@ -140,7 +140,7 @@ source install/setup.bash
 | `ros2 run openarm_moveit ex03_cartesian_path` | 손끝 직선 보간 — `compute_cartesian_path`, fraction, ExecuteTrajectory |
 | `ros2 run openarm_moveit ex04_pick_and_place` | pick and place — seed IK, GripperCommand 액션 |
 | `ros2 launch openarm_moveit servo.launch.py` | MoveIt demo + Servo 노드 |
-| `ros2 run openarm_moveit ex05_keyboard_servo` | 키보드 teleop — TwistStamped 를 Servo 로 |
+| `ros2 run openarm_moveit ex05_keyboard_servo` | 키보드 teleop — TwistStamped 를 Servo 로, 입력은 창(pygame)에서 |
 
 ex02~ex04 는 단계마다 `/next_step` 신호를 기다린다. 다른 터미널에서 한 단계씩 넘긴다.
 
