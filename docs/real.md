@@ -11,16 +11,26 @@
 
 ## 1단계 — CAN-FD 인터페이스
 
-오른팔은 `can0`, 왼팔은 `can1` 이다. 쓰는 팔의 인터페이스를 올린다.
+오른팔은 `can0`, 왼팔은 `can1` 이다. `scripts/canup.sh` 가 두 인터페이스를 1 Mbit/s
+arbitration · 5 Mbit/s data 의 CAN-FD 로 세우고 올린다.
 
 ```bash
-sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
-sudo ip link set can1 type can bitrate 1000000 dbitrate 5000000 fd on
+~/openarm_ws/scripts/canup.sh
 ```
 
+한쪽 팔만 쓰면 인터페이스를 지정한다. 비트레이트는 `-b` · `-d` 로 바꾸고, 내릴 때는 `--down`
+이다.
+
 ```bash
-sudo ip link set up can0
-sudo ip link set up can1
+~/openarm_ws/scripts/canup.sh can1
+```
+
+스크립트가 실행하는 명령은 인터페이스마다 아래와 같다.
+
+```bash
+sudo ip link set can1 down
+sudo ip link set can1 type can bitrate 1000000 dbitrate 5000000 fd on restart-ms 100
+sudo ip link set can1 up
 ```
 
 **확인** — `ip -details link show can1` 출력에 `state UP` 과 `fd on` 이 보인다.
