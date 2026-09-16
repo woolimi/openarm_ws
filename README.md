@@ -54,6 +54,7 @@ source install/setup.bash
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
 | [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop 과 MoveIt 예제 |
+| [docs/commands.md](docs/commands.md) | teleop 과 MoveIt 예제 ex01~ex05 실행 명령 모음 |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
 
