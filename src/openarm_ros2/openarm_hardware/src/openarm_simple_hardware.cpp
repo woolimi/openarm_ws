@@ -18,6 +18,8 @@
 #include <cctype>
 #include <cmath>
 #include <chrono>
+#include <functional>
+#include <memory>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -29,6 +31,154 @@
 namespace openarm_hardware {
 
 OpenArmHW::OpenArmHW() = default;
+
+OpenArmHW::~OpenArmHW() { stop_mode_services(); }
+
+void OpenArmHW::build_gain_modes() {
+  kp_modes_[MODE_DEFAULT] = kp_;
+  kd_modes_[MODE_DEFAULT] = kd_;
+
+  kp_modes_[MODE_IMPEDANCE].resize(ARM_DOF);
+  kd_modes_[MODE_IMPEDANCE].resize(ARM_DOF);
+  kp_modes_[MODE_ZERO_G].assign(ARM_DOF, 0.0);
+  kd_modes_[MODE_ZERO_G].resize(ARM_DOF);
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    kp_modes_[MODE_IMPEDANCE][i] = kp_[i] * IMPEDANCE_KP_SCALE;
+    kd_modes_[MODE_IMPEDANCE][i] = kd_[i] * IMPEDANCE_KD_SCALE;
+    // Never above the nominal damping: the floor is there to hold a limp
+    // arm, not to add damping the nominal set did not ask for.
+    kd_modes_[MODE_ZERO_G][i] = std::min(ZERO_G_KD[i], kd_[i]);
+  }
+}
+
+void OpenArmHW::start_mode_services() {
+  std::string suffix = arm_prefix_;
+  if (!suffix.empty() && suffix.back() == '_') suffix.pop_back();
+  const std::string node_name =
+      suffix.empty() ? "openarm_hw" : "openarm_hw_" + suffix;
+
+  rclcpp::NodeOptions options;
+  // The controller manager already parsed the command line; taking it again
+  // here would apply its remappings to this node as well.
+  options.arguments({});
+  node_ = std::make_shared<rclcpp::Node>(node_name, options);
+
+  // One service per mode instead of one service taking a mode name: Trigger
+  // is a stock type, so switching a mode needs no message package and no
+  // spelling to get right at the terminal.
+  // "~/" puts them under this node. Without it the name resolves against the
+  // namespace instead, and both arms would register the same three services.
+  const std::array<std::string, MODE_COUNT> names = {
+      "~/gains/default", "~/gains/impedance", "~/gains/zero_gravity"};
+  for (size_t mode = 0; mode < MODE_COUNT; ++mode) {
+    mode_services_[mode] = node_->create_service<std_srvs::srv::Trigger>(
+        names[mode],
+        [this, mode](
+            const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+            std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+          switch_mode(mode, response);
+        });
+  }
+
+  executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+  executor_->add_node(node_);
+  spin_thread_ = std::thread([this]() { executor_->spin(); });
+
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
+              "Gain modes: /%s/gains/{default,impedance,zero_gravity}",
+              node_name.c_str());
+}
+
+void OpenArmHW::stop_mode_services() {
+  if (executor_) {
+    executor_->cancel();
+  }
+  if (spin_thread_.joinable()) {
+    spin_thread_.join();
+  }
+  for (auto& service : mode_services_) {
+    service.reset();
+  }
+  executor_.reset();
+  node_.reset();
+}
+
+void OpenArmHW::switch_mode(
+    size_t mode, std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+  static const std::array<const char*, MODE_COUNT> labels = {
+      "default", "impedance", "zero gravity"};
+
+  // Softening the arm hands its weight to the feed-forward. Without one the
+  // arm would simply fall, so this is refused rather than obeyed.
+  if (mode != MODE_DEFAULT && !gravity_comp_) {
+    response->success = false;
+    response->message =
+        std::string("cannot switch to ") + labels[mode] +
+        ": gravity compensation is off, the arm would drop";
+    RCLCPP_WARN(rclcpp::get_logger("OpenArmHW"), "%s",
+                response->message.c_str());
+    return;
+  }
+
+  // Stiffening after the arm was moved by hand: let write() walk the command
+  // over instead of pulling the arm to wherever the controller still points.
+  // The walk is armed before the gains change, because a single cycle of
+  // full stiffness against a stale command is the very yank it prevents.
+  const size_t previous = mode_.load(std::memory_order_relaxed);
+  bool stiffening = false;
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    if (kp_modes_[mode][i] > kp_modes_[previous][i]) stiffening = true;
+  }
+  if (stiffening) {
+    resync_pending_.store(true, std::memory_order_release);
+  }
+  mode_.store(mode, std::memory_order_relaxed);
+
+  std::ostringstream message;
+  message << labels[mode] << " gains: kp";
+  for (size_t i = 0; i < ARM_DOF; ++i) message << ' ' << kp_modes_[mode][i];
+  message << ", kd";
+  for (size_t i = 0; i < ARM_DOF; ++i) message << ' ' << kd_modes_[mode][i];
+  if (stiffening) message << " (walking the command back over)";
+  response->success = true;
+  response->message = message.str();
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "%s",
+              response->message.c_str());
+}
+
+void OpenArmHW::update_targets(const rclcpp::Duration& period) {
+  if (resync_pending_.exchange(false, std::memory_order_acq_rel)) {
+    std::copy_n(pos_states_.begin(), ARM_DOF, pos_targets_.begin());
+    resync_active_ = true;
+  }
+  if (!resync_active_) {
+    std::copy_n(pos_commands_.begin(), ARM_DOF, pos_targets_.begin());
+    return;
+  }
+
+  double dt = period.seconds();
+  if (!(dt > 0.0)) dt = DEFAULT_PERIOD;
+  // A period that long means the loop stalled; stepping the whole of it at
+  // once is the jump this walk exists to avoid.
+  dt = std::min(dt, 0.05);
+  const double step = RESYNC_SPEED * dt;
+
+  bool arrived = true;
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    const double error = pos_commands_[i] - pos_targets_[i];
+    if (std::abs(error) <= step) {
+      pos_targets_[i] = pos_commands_[i];
+    } else {
+      pos_targets_[i] += std::copysign(step, error);
+      arrived = false;
+    }
+  }
+  if (arrived) {
+    resync_active_ = false;
+    RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
+                "Command caught up with the arm; the controller drives again");
+  }
+}
 
 bool OpenArmHW::parse_config(const hardware_interface::HardwareInfo& info) {
   // Parse CAN interface (default: can0)
@@ -208,6 +358,11 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   // Generate joint names based on arm prefix
   generate_joint_names();
 
+  // Gain modes are derived from the gains just parsed, and the services that
+  // pick between them come up with the hardware.
+  build_gain_modes();
+  start_mode_services();
+
   // Build the KDL model from the exact URDF this robot was loaded with, so the
   // compensation can never drift from the description. A model that will not
   // build turns compensation off rather than feeding write() garbage.
@@ -350,7 +505,12 @@ hardware_interface::CallbackReturn OpenArmHW::on_activate(
     return CallbackReturn::ERROR;
   }
 
-  // Walk slowly to the zero pose, then keep commanding it.
+  // Walk slowly to the zero pose, then keep commanding it. Homing needs the
+  // stiffness to follow its own interpolation, so a session that was left in
+  // a soft mode starts over at the nominal gains.
+  mode_.store(MODE_DEFAULT, std::memory_order_relaxed);
+  resync_pending_.store(false, std::memory_order_relaxed);
+  resync_active_ = false;
   return_to_zero();
   for (size_t i = 0; i < ARM_DOF && i < pos_commands_.size(); ++i) {
     pos_commands_[i] = ZERO_POSITION[i];
@@ -430,15 +590,23 @@ void OpenArmHW::update_feedforward() {
 }
 
 hardware_interface::return_type OpenArmHW::write(
-    const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {
+    const rclcpp::Time& /*time*/, const rclcpp::Duration& period) {
   // Model feed-forward (#77): tau_ff = tau_cmd + G(q) + tau_bias so the motors
   // hold the arm's weight and the MIT PD term only corrects tracking error.
   update_feedforward();
+  update_targets(period);
+
+  // Gains of whichever mode the services last selected. One relaxed load a
+  // cycle, and the tables were built at startup, so this path still
+  // allocates nothing.
+  const size_t mode = mode_.load(std::memory_order_relaxed);
+  const std::vector<double>& kp = kp_modes_[mode];
+  const std::vector<double>& kd = kd_modes_[mode];
 
   // Control arm motors with MIT control
   std::vector<openarm::damiao_motor::MITParam> arm_params;
   for (size_t i = 0; i < ARM_DOF; ++i) {
-    arm_params.push_back({kp_[i], kd_[i], pos_commands_[i], vel_commands_[i],
+    arm_params.push_back({kp[i], kd[i], pos_targets_[i], vel_commands_[i],
                           tau_commands_[i] + feedforward_[i]});
   }
   openarm_->get_arm().mit_control_all(arm_params);
@@ -494,7 +662,9 @@ void OpenArmHW::return_to_zero() {
     std::vector<openarm::damiao_motor::MITParam> arm_params;
     for (size_t i = 0; i < ARM_DOF; ++i) {
       double target = start_pos[i] + t * (ZERO_POSITION[i] - start_pos[i]);
-      arm_params.push_back({kp_[i], kd_[i], target, 0.0, feedforward_[i]});
+      arm_params.push_back({kp_modes_[MODE_DEFAULT][i],
+                            kd_modes_[MODE_DEFAULT][i], target, 0.0,
+                            feedforward_[i]});
     }
     openarm_->get_arm().mit_control_all(arm_params);
 

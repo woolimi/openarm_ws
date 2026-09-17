@@ -31,6 +31,7 @@
   <depend>openarm_can</depend>
   <depend>orocos_kdl_vendor</depend>
   <depend>pluginlib</depend>
+  <depend>std_srvs</depend>
   <depend>urdf</depend>
 
   <test_depend>ament_lint_auto</test_depend>

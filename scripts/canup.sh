@@ -33,6 +33,7 @@ USAGE
 
 down_only=false
 ifaces=()
+argv=("$@")   # sudo 재실행 때 원래 인자를 그대로 넘기려고 파싱 전에 보관한다
 
 while (($#)); do
   case "$1" in
@@ -47,7 +48,7 @@ done
 
 # ip link 설정은 root 권한이 필요하다.
 if ((EUID != 0)); then
-  exec sudo -- "$0" "$@"
+  exec sudo -- "$0" "${argv[@]}"
 fi
 
 exists() { ip link show "$1" &>/dev/null; }

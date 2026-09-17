@@ -100,6 +100,31 @@ ros2 launch openarm_moveit servo.launch.py use_fake_hardware:=false # 실기
 ros2 run openarm_moveit ex05_keyboard_servo
 ```
 
+## 게인 모드 전환 (실기만)
+
+팔이 뜬 상태에서 MIT 게인을 바꾼다. 팔마다 노드가 하나씩 뜨고(`openarm_hw_left`·
+`openarm_hw_right`), 서비스는 그 아래에 있다. mock hardware 는 플러그인을 쓰지 않으므로
+서비스도 없다.
+
+```bash
+ros2 service call /openarm_hw_left/gains/default      std_srvs/srv/Trigger   # 실물 게인
+ros2 service call /openarm_hw_left/gains/impedance    std_srvs/srv/Trigger   # kp 1/4 — 밀면 물러난다
+ros2 service call /openarm_hw_left/gains/zero_gravity std_srvs/srv/Trigger   # kp 0 — 손으로 끈다
+```
+
+| 모드 | kp (J1~J7) | kd (J1~J7) |
+| --- | --- | --- |
+| default | 70 70 70 60 10 10 10 | 2.75 2.5 2.0 2.0 0.7 0.6 0.5 |
+| impedance | 17.5 17.5 17.5 15 2.5 2.5 2.5 | 1.65 1.5 1.2 1.2 0.42 0.36 0.3 |
+| zero_gravity | 0 0 0 0 0 0 0 | 1.0 1.0 0.8 0.8 0.2 0.2 0.2 |
+
+`impedance` 와 `zero_gravity` 는 중력보상이 켜져 있어야 한다. 꺼져 있으면 서비스가
+`success: false` 로 거절한다 — kp 를 내린 팔을 앞먹임이 받쳐 주지 못하면 그대로 주저앉는다.
+
+무중력에서 팔을 끌어다 놓고 `default` 로 돌아오면, 지령은 손으로 옮기기 전 자리에 남아
+있다. 그래서 복귀할 때 지령을 현재 자세에서 다시 출발시켜 0.4 rad/s 로 걸어가게 한다 —
+팔이 옛 목표로 튕기지 않는다. 걸어가는 동안에는 컨트롤러 지령을 그만큼 늦게 따른다.
+
 ## 상태 확인
 
 ```bash

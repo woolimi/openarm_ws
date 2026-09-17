@@ -25,6 +25,8 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+# Runtime gain modes are switched over services.
+find_package(std_srvs REQUIRED)
 # Gravity feed-forward (#77) needs the URDF and a KDL dynamics solver.
 find_package(kdl_parser REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
@@ -55,6 +57,7 @@ ament_target_dependencies(${PROJECT_NAME}
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  std_srvs
   urdf
 )
 
@@ -83,6 +86,7 @@ ament_export_dependencies(
   orocos_kdl_vendor
   pluginlib
   rclcpp
+  std_srvs
   urdf
 )
 

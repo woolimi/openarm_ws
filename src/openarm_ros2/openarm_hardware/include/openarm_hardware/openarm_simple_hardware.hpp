@@ -15,11 +15,13 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <openarm/can/socket/openarm.hpp>
 #include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
@@ -29,7 +31,9 @@
 #include "openarm_hardware/dynamics.hpp"
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 namespace openarm_hardware {
 
@@ -43,6 +47,7 @@ namespace openarm_hardware {
 class OpenArmHW : public hardware_interface::SystemInterface {
  public:
   OpenArmHW();
+  ~OpenArmHW();
 
   TEMPLATES__ROS2_CONTROL__VISIBILITY_PUBLIC
   hardware_interface::CallbackReturn on_init(
@@ -102,9 +107,58 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   const uint32_t DEFAULT_GRIPPER_SEND_CAN_ID = 0x08;
   const uint32_t DEFAULT_GRIPPER_RECV_CAN_ID = 0x18;
 
-  // Gains
+  // Gains. These are the nominal set the description passes in; the modes
+  // below are derived from them at startup.
   std::vector<double> kp_ = {70.0, 70.0, 70.0, 60.0, 10.0, 10.0, 10.0};
   std::vector<double> kd_ = {2.75, 2.5, 2.0, 2.0, 0.7, 0.6, 0.5};
+
+  // --- Gain modes ------------------------------------------------------
+  // Three ways to drive the same arm, switched by service while it runs.
+  //
+  //   DEFAULT     the nominal gains: stiff enough to track a trajectory
+  //   IMPEDANCE   a quarter of the stiffness, so the arm yields to a hand
+  //               and the feed-forward carries its weight
+  //   ZERO_G      no stiffness at all, only damping: hand guiding
+  //
+  // The two soft modes need the gravity feed-forward, because what the PD
+  // term stops holding the model has to hold instead.
+  enum GainMode : size_t {
+    MODE_DEFAULT = 0,
+    MODE_IMPEDANCE = 1,
+    MODE_ZERO_G = 2,
+    MODE_COUNT = 3,
+  };
+  // Scales on the nominal gains, from the operator console's soft recipe.
+  static constexpr double IMPEDANCE_KP_SCALE = 0.25;
+  static constexpr double IMPEDANCE_KD_SCALE = 0.6;
+  // Damping that stays once kp is zero. Shoulder and elbow need more than
+  // the wrist to stop the arm swinging when nothing holds it.
+  static constexpr std::array<double, ARM_DOF> ZERO_G_KD = {1.0, 1.0, 0.8, 0.8,
+                                                            0.2, 0.2, 0.2};
+  std::array<std::vector<double>, MODE_COUNT> kp_modes_;
+  std::array<std::vector<double>, MODE_COUNT> kd_modes_;
+  // Read by write() every cycle and written by a service callback on another
+  // thread, so the switch is one atomic store and never a half-applied set.
+  std::atomic<size_t> mode_{MODE_DEFAULT};
+
+  // Re-synchronisation after a soft mode. While kp was low the arm was moved
+  // by hand, and the controller's command stayed where it was, so restoring
+  // stiffness would snap the arm back to it. Instead the commanded position
+  // restarts at the measured pose and walks to the controller's command at a
+  // speed a person can step away from.
+  static constexpr double RESYNC_SPEED = 0.4;      // rad/s
+  static constexpr double DEFAULT_PERIOD = 1.0 / 750.0;  // s, if write() gets 0
+  std::atomic<bool> resync_pending_{false};
+  bool resync_active_ = false;
+  std::vector<double> pos_targets_ = std::vector<double>(ARM_DOF, 0.0);
+
+  // The services live on a node of our own: a hardware component is not one,
+  // and the controller manager's node must not be blocked by our callbacks.
+  std::shared_ptr<rclcpp::Node> node_;
+  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> executor_;
+  std::thread spin_thread_;
+  std::array<rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr, MODE_COUNT>
+      mode_services_;
 
   const double GRIPPER_JOINT_0_POSITION = 0.044;
   const double GRIPPER_JOINT_1_POSITION = 0.0;
@@ -169,6 +223,17 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   void return_to_zero();
   bool parse_config(const hardware_interface::HardwareInfo& info);
   void generate_joint_names();
+  // Derives the mode tables from the nominal gains. Called once, so write()
+  // only ever indexes them.
+  void build_gain_modes();
+  // Brings up the node the mode services sit on and spins it.
+  void start_mode_services();
+  void stop_mode_services();
+  // Service body: switches the mode, or explains why it did not.
+  void switch_mode(size_t mode,
+                   std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+  // Walks pos_targets_ to the controller's command after a soft mode.
+  void update_targets(const rclcpp::Duration& period);
   // Fills feedforward_ with the capped model torque plus the measured offset
   // for the current pose, or zeros when compensation is off. Allocation-free.
   void update_feedforward();
