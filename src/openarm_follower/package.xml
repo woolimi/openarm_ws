@@ -3,7 +3,7 @@
 <package format="3">
   <name>openarm_follower</name>
   <version>0.1.0</version>
-  <description>OpenArm v1.0 팔로워 bringup 과 중력보상 캘리브레이션 CLI.</description>
+  <description>OpenArm v1.0 팔로워 bringup, 중력보상 캘리브레이션과 관절 점검 CLI.</description>
   <maintainer email="woolim@pinklab.art">Woolim Park</maintainer>
   <license>Apache-2.0</license>
 
@@ -20,6 +20,7 @@
   <exec_depend>openarm_bringup</exec_depend>
   <exec_depend>openarm_description</exec_depend>
   <exec_depend>openarm_leader</exec_depend>
+  <exec_depend>xacro</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

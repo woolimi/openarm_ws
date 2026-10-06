@@ -19,11 +19,13 @@ setup(
     zip_safe=True,
     maintainer='Woolim Park',
     maintainer_email='woolim@pinklab.art',
-    description='OpenArm v1.0 팔로워 bringup 과 중력보상 캘리브레이션 CLI.',
+    description='OpenArm v1.0 팔로워 bringup, 중력보상 캘리브레이션과 관절 점검 CLI.',
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
             'calibrate_gravity = openarm_follower.calibrate_gravity:main',
+            'joint_limit_measure = openarm_follower.joint_limit_measure:main',
+            'joint_drive_test = openarm_follower.joint_drive_test:main',
         ],
     },
 )
