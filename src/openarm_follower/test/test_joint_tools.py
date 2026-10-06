@@ -184,8 +184,14 @@ def test_a_gripper_never_opened_has_no_direction_to_judge():
 def test_shoulder_targets_are_80_percent_of_the_limits():
     low, high = drive.targets(0, math.radians(-80), math.radians(200))
     assert (math.degrees(low), math.degrees(high)) == pytest.approx((-64.0, 160.0))
+
+
+def test_a_shoulder_limit_near_zero_keeps_the_stop_margin():
+    """오른팔 J2 의 -10° 쪽은 80% 지점(-8°)이 스톱에서 2° 라 3° 안쪽(-7°)에서 멈춘다."""
     low, high = drive.targets(1, math.radians(-10), math.radians(190))
-    assert (math.degrees(low), math.degrees(high)) == pytest.approx((-8.0, 152.0))
+    assert (math.degrees(low), math.degrees(high)) == pytest.approx((-7.0, 152.0))
+    low, high = drive.targets(1, math.radians(-190), math.radians(10))
+    assert (math.degrees(low), math.degrees(high)) == pytest.approx((-152.0, 7.0))
 
 
 def test_other_targets_stop_3_degrees_short():
@@ -271,9 +277,13 @@ def test_ramp_follows_a_speed_change_without_a_jump():
 class _FakeMotor:
     def __init__(self, q):
         self.q = q
+        self.tmos = 30          # 응답한 모터의 MOSFET 온도(℃)
 
     def get_position(self):
         return self.q
+
+    def get_state_tmos(self):
+        return self.tmos
 
 
 class _FakeGroup:
@@ -358,6 +368,28 @@ def test_a_snagged_joint_stops_where_it_is(fast):
     with pytest.raises(fast.Snag, match='R-J4'):
         arm.move(3, math.radians(60), _LABELS)
     assert arm.q_cmd[3] == 0.0
+    assert arm.snags == 1
+
+
+_LIMITS = [(-1.0, 1.0)] * 8
+
+
+def test_the_start_pose_is_the_arm_as_read():
+    openarm = _FakeOpenArm([0.2] * 8)
+    assert drive.start_pose(drive.Arm(openarm, _OA), _LABELS, _LIMITS) == [0.2] * 8
+
+
+def test_a_silent_motor_keeps_the_motors_off(capsys):
+    openarm = _FakeOpenArm([0.0] * 8)
+    openarm.get_gripper().get_motors()[0].tmos = 0
+    assert drive.start_pose(drive.Arm(openarm, _OA), _LABELS, _LIMITS) is None
+    assert 'R-그리퍼' in capsys.readouterr().out
+
+
+def test_a_joint_past_its_limits_keeps_the_motors_off(capsys):
+    openarm = _FakeOpenArm([0.0] * 7 + [1.5])
+    assert drive.start_pose(drive.Arm(openarm, _OA), _LABELS, _LIMITS) is None
+    assert 'R-그리퍼' in capsys.readouterr().out
 
 
 def test_a_position_wrap_is_refused(fast):

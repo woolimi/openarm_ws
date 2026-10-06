@@ -10,13 +10,19 @@
 
 목표는 하드스톱을 누르지 않게 한계 안쪽에 둔다.
   - J1·J2: 영점 기준 한계각의 80%. 하한 -80°, 상한 +200° 이면 -64°, +160° 까지 간다.
+    80% 지점이 한계에서 3° 보다 가까우면(오른팔 J2 의 -10° 쪽) 3° 안쪽까지만 간다.
   - J3~J7·그리퍼: 한계에서 3° 안쪽.
 원점이 두 목표 사이에 없으면(하한 스톱이 0° 인 J4, 닫힘이 0° 인 그리퍼) 원점 대신
 가까운 쪽 목표로 돌아와 스톱을 누르지 않는다.
 
+모터를 켜기 직전에 자세를 다시 읽는다. 계획 표를 보는 동안 힘 빠진 팔이 처졌어도
+켜는 순간 처음 읽은 자세로 끌려가지 않는다. 응답하지 않는 모터가 있거나 한계를 벗어난
+관절이 있으면 모터를 켜지 않고 끝낸다.
+
 멈추는 조건:
   - 어느 관절이든 명령과 실제 위치가 10° 넘게 벌어지면 무언가에 걸린 것으로 보고,
-    움직이던 관절을 그 자리에 붙잡은 뒤 원점으로 돌아갈지 묻는다.
+    움직이던 관절을 그 자리에 붙잡은 뒤 원점으로 돌아갈지 묻는다. 걸린 적이 있으면
+    종료 코드 1 로 끝난다.
   - 한 제어 주기에 위치가 45° 넘게 뛰면 DM 모터의 ±12.5 rad wrap 이라 곧바로 모터를 끈다.
   - Ctrl-C 는 그 자리에서 붙잡고 원점으로 돌아갈지 묻는다.
 
@@ -40,7 +46,8 @@ import tty
 from openarm_follower import arm_limits, can_arm
 from openarm_follower.terminal import deg, pad, status
 
-# J1·J2 는 팔 전체를 드는 어깨 관절이라 한계 근처까지 가지 않는다.
+# J1·J2 는 팔 전체를 드는 어깨 관절이라 한계각의 80% 까지만 간다. 한계가 영점에 가까운
+# 쪽(오른팔 J2 의 -10°)은 80% 지점도 한계에 가까워 STOP_MARGIN_RAD 를 같이 지킨다.
 SHOULDER_JOINTS = (0, 1)
 SHOULDER_SCALE = 0.8
 STOP_MARGIN_RAD = math.radians(3)
@@ -86,7 +93,8 @@ def targets(index, lower, upper):
     if index in SHOULDER_JOINTS:
         if not lower < 0.0 < upper:
             raise ValueError(f'영점(0°)이 한계 [{deg(lower)}, {deg(upper)}] 안에 없다')
-        return lower * SHOULDER_SCALE, upper * SHOULDER_SCALE
+        return (max(lower * SHOULDER_SCALE, lower + STOP_MARGIN_RAD),
+                min(upper * SHOULDER_SCALE, upper - STOP_MARGIN_RAD))
     low, high = lower + STOP_MARGIN_RAD, upper - STOP_MARGIN_RAD
     if not low < high:
         raise ValueError(
@@ -191,15 +199,19 @@ class Keys:
 
 
 class Arm:
-    """한 팔의 모터 여덟 개. 명령 위치 q_cmd 를 들고 매 주기 전부에 MIT 명령을 보낸다."""
+    """한 팔의 모터 여덟 개. 명령 위치 q_cmd 를 들고 매 주기 전부에 MIT 명령을 보낸다.
 
-    def __init__(self, openarm, oa, keys=None, speed=None):
+    snags 는 관절이 명령을 따라오지 못한(Snag) 횟수다.
+    """
+
+    def __init__(self, openarm, oa, keys=None):
         self._openarm = openarm
         self._oa = oa
         self._keys = keys
-        self.speed = SPEED_RAD_S if speed is None else speed
+        self.speed = SPEED_RAD_S
         self.q_cmd = None
         self._q_prev = None
+        self.snags = 0
 
     def positions(self):
         return can_arm.positions(self._openarm)
@@ -207,6 +219,10 @@ class Arm:
     def read(self):
         """모터를 켜지 않고 위치를 읽는다."""
         return can_arm.read(self._openarm)
+
+    def silent(self):
+        """아직 응답하지 않은 모터의 인덱스."""
+        return can_arm.silent(self._openarm)
 
     def enable(self, q):
         """q 를 붙잡을 위치로 두고 모터를 켠다."""
@@ -282,6 +298,7 @@ class Arm:
             error = q[worst] - self.q_cmd[worst]
             if abs(error) > TRACKING_LIMIT_RAD:
                 self.q_cmd[index] = q[index]
+                self.snags += 1
                 raise Snag(f'{labels[worst]} 의 실제 위치가 명령과 {math.degrees(error):+.1f}° 어긋났다')
             self._check_keys(index, q, stoppable=keys)
             status(f'  {labels[index]}  목표 {math.degrees(goal):+6.1f}°'
@@ -306,6 +323,28 @@ class Arm:
             if key in choices:
                 sys.stdout.write('\n')
                 return key
+
+
+def start_pose(arm, labels, limits):
+    """모터를 켜지 않고 읽은 지금 자세.
+
+    응답하지 않은 모터가 있거나 한계를 POSE_TOLERANCE_RAD 넘게 벗어난 관절이 있으면
+    이유를 찍고 None.
+    """
+    q = arm.read()
+    silent = arm.silent()
+    if silent:
+        print(f'  응답하지 않는 모터: {", ".join(labels[i] for i in silent)}. '
+              '모터 점검으로 배선과 전원을 확인하세요.')
+        return None
+    outside = pose_outside(q, limits)
+    if outside:
+        for i in outside:
+            print(f'  {labels[i]}: 현재 {deg(q[i])} 가 URDF 한계 '
+                  f'[{deg(limits[i][0])}, {deg(limits[i][1])}] 밖입니다.')
+        print('  영점이 어긋났거나 URDF 한계가 실물과 다릅니다. 영점 세팅과 수동 관절 한계 측정으로 확인하세요.')
+        return None
+    return q
 
 
 def _return_to_origin(arm, index, origin, labels):
@@ -400,13 +439,7 @@ def main(argv=None):
     oa = can_arm.import_bindings()
     keys = Keys()
     arm = Arm(can_arm.open_arm(oa, args.interface), oa, keys)
-    q_start = arm.read()
-    outside = pose_outside(q_start, limits)
-    if outside:
-        for i in outside:
-            print(f'  {labels[i]}: 현재 {deg(q_start[i])} 가 URDF 한계 '
-                  f'[{deg(limits[i][0])}, {deg(limits[i][1])}] 밖입니다.')
-        print('  영점이 어긋났거나 URDF 한계가 실물과 다릅니다. 영점 세팅과 수동 관절 한계 측정으로 확인하세요.')
+    if start_pose(arm, labels, limits) is None:
         return 1
 
     print()
@@ -423,6 +456,11 @@ def main(argv=None):
     except KeyboardInterrupt:
         print('\n  취소했습니다. 모터는 켜지 않았습니다.')
         return 0
+    # 표를 보는 동안 팔이 움직였을 수 있다. 처음 읽은 자세로 켜면 그 자세로 끌려간다.
+    q_start = start_pose(arm, labels, limits)
+    if q_start is None:
+        print('  모터는 켜지 않았습니다.')
+        return 1
 
     rc = 0
     try:
@@ -435,6 +473,9 @@ def main(argv=None):
     finally:
         arm.disable()
         print('  모터를 껐습니다.')
+    if arm.snags:
+        print(f'  관절이 명령을 따라오지 못한 적이 {arm.snags}번 있어 실패로 끝냅니다.')
+        rc = 1
     return rc
 
 

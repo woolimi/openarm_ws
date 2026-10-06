@@ -53,11 +53,23 @@ def open_arm(oa, interface):
     return openarm
 
 
+def _motors(openarm):
+    return list(openarm.get_arm().get_motors()) + list(openarm.get_gripper().get_motors())
+
+
 def positions(openarm):
     """마지막으로 받은 모터 위치 여덟 개(rad), CAN ID 순서."""
-    motors = (list(openarm.get_arm().get_motors())
-              + list(openarm.get_gripper().get_motors()))
-    return [motor.get_position() for motor in motors]
+    return [motor.get_position() for motor in _motors(openarm)]
+
+
+def silent(openarm):
+    """상태를 한 번도 보내지 않은 모터의 인덱스, CAN ID 순서.
+
+    binding 은 응답 여부를 따로 알려 주지 않는다. 상태 프레임의 MOSFET 온도(℃)는 0 에서
+    시작해 첫 응답부터 실온 이상이 되므로, 0 으로 남은 모터는 아직 답하지 않은 것이다.
+    답하지 않은 모터의 위치는 초깃값 0 이라 실제 자세로 쓸 수 없다.
+    """
+    return [i for i, motor in enumerate(_motors(openarm)) if motor.get_state_tmos() <= 0]
 
 
 def read(openarm):
