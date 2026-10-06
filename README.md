@@ -4,6 +4,7 @@ OpenArm v1.0 실습용 ROS 2 workspace.
 
 - mock hardware 팔로워 bringup — RViz 시뮬레이션 (`openarm_follower`)
 - 중력보상 설정과 캘리브레이션 CLI (`openarm_follower`)
+- 팔로워 점검 — 모터 응답, 영점, 관절 한계 측정, 관절 구동 테스트 (`scripts/01.checkup.sh`)
 - 슬라이더·Feetech 리더암 입력의 teleoperation relay (`openarm_leader`)
 - 리더암 셋업 CLI — udev·서보 id·캘리브레이션 (`openarm_leader`)
 - MoveIt 실습 — demo 조립, Python 예제 다섯, Servo teleop (`openarm_moveit`)
@@ -42,7 +43,8 @@ source install/setup.bash
 | --- | --- |
 | `docs/` | 단계별 실습 문서 |
 | `openarm.repos` | 업스트림 2개 리포의 커밋 고정 |
-| `src/openarm_follower/` | 팔로워 bringup launch, 중력보상 설정과 캘리브레이션 CLI |
+| `scripts/` | CAN-FD 인터페이스(`canup.sh`)와 팔로워 점검(`01.checkup.sh`) 스크립트 |
+| `src/openarm_follower/` | 팔로워 bringup launch, 중력보상 설정과 캘리브레이션 CLI, 관절 점검 CLI |
 | `src/openarm_leader/` | 리더 relay 노드, teleop launch, 셋업 CLI |
 | `src/openarm_moveit/` | MoveIt demo·Servo launch, SRDF·관절 한계·컨트롤러 설정, Python 예제 5개 |
 | `src/openarm_ros2/` | 내장한 Enactic 팔로워 제어·MoveIt 스택 |
@@ -53,7 +55,7 @@ source install/setup.bash
 | 문서 | 내용 |
 | --- | --- |
 | [docs/simulation.md](docs/simulation.md) | 환경 구축, mock hardware bringup, 슬라이더 teleop, MoveIt, Python 예제 |
-| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop 과 MoveIt 예제 |
+| [docs/real.md](docs/real.md) | CAN-FD 세팅, 팔로워 영점, 리더 모터 체크와 캘리브레이션, 중력보상 실측, 실기 teleop 과 MoveIt 예제, 팔로워 점검 스크립트 |
 | [docs/commands.md](docs/commands.md) | teleop 과 MoveIt 예제 ex01~ex05 실행 명령 모음 |
 
 시뮬레이션 실습부터 진행한다. 환경 구축(시뮬레이션 1~4단계)은 두 실습의 공통 단계다.
@@ -69,6 +71,9 @@ source install/setup.bash
 | `ros2 run openarm_leader check` | 서보 응답 확인, 관절 매핑 실시간 표시 |
 | `ros2 run openarm_leader calibrate` | 리더암 영점·그리퍼 범위 캘리브레이션 |
 | `ros2 run openarm_follower calibrate_gravity` | 중력보상 페이로드·토크 오프셋 실측 |
+| `scripts/01.checkup.sh` | 팔로워 점검 메뉴 — CAN-FD, 모터 응답, 영점, 관절 한계 측정, 관절 구동 테스트 |
+| `ros2 run openarm_follower joint_limit_measure` | 모터를 끈 채 손으로 잰 관절 한계를 URDF 한계와 비교 |
+| `ros2 run openarm_follower joint_drive_test` | URDF 한계 안쪽까지 한 관절씩 자동 구동, 원점 복귀 |
 
 팔로워(OpenArm 본체) 쪽 모터 스캔과 영점은 업스트림 `openarm-can-cli` 가 맡는다 — `discover` 로 버스를 훑고 `set_zero` 로 지금 자세를 0 rad 으로 굽는다.
 
