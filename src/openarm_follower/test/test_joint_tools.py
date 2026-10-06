@@ -413,6 +413,27 @@ def test_s_and_q_stop_the_moving_joint_where_it_is(fast, key, error):
     assert 0.0 < arm.q_cmd[2] < math.radians(40)
 
 
+def test_a_stalled_loop_does_not_jump_the_command(monkeypatch):
+    """루프가 1 초씩 멈췄다 풀려도 한 주기 명령 이동은 MAX_STEP_S 만큼의 거리를 넘지 않는다."""
+    clock = iter(range(10 ** 6))
+    monkeypatch.setattr(drive.time, 'monotonic', lambda: float(next(clock)))
+    monkeypatch.setattr(drive, 'CONTROL_PERIOD_S', 0.0)
+    openarm = _FakeOpenArm([0.0] * 8)
+    arm = drive.Arm(openarm, _OA)
+    arm.enable(arm.read())
+    steps = []
+    move = openarm.get_arm().mit_control_all
+
+    def record(params):
+        steps.append(params[2][2])
+        move(params)
+    monkeypatch.setattr(openarm.get_arm(), 'mit_control_all', record)
+    arm.move(2, math.radians(2), _LABELS)
+    assert arm.q_cmd[2] == pytest.approx(math.radians(2))
+    jumps = [b - a for a, b in zip([0.0] + steps, steps)]
+    assert max(jumps) <= drive.SPEED_RAD_S * drive.MAX_STEP_S + 1e-12
+
+
 def test_arrow_keys_change_the_speed_while_moving(fast):
     openarm = _FakeOpenArm([0.0] * 8)
     arm = fast.Arm(openarm, _OA, _ScriptedKeys(['down', 'down']))

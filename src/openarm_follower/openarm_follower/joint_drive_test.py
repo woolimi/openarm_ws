@@ -15,16 +15,16 @@
 원점이 두 목표 사이에 없으면(하한 스톱이 0° 인 J4, 닫힘이 0° 인 그리퍼) 원점 대신
 가까운 쪽 목표로 돌아와 스톱을 누르지 않는다.
 
-모터를 켜기 직전에 자세를 다시 읽는다. 계획 표를 보는 동안 힘 빠진 팔이 처졌어도
-켜는 순간 처음 읽은 자세로 끌려가지 않는다. 응답하지 않는 모터가 있거나 한계를 벗어난
-관절이 있으면 모터를 켜지 않고 끝낸다.
+자세는 계획 표를 보여 주고 Enter 를 받은 뒤, 모터를 켜기 직전에 읽는다. 표를 보는 동안
+힘 빠진 팔이 처졌어도 켜는 순간 이전 자세로 끌려가지 않는다. 응답하지 않는 모터가 있거나
+한계를 벗어난 관절이 있으면 모터를 켜지 않고 끝낸다.
 
 멈추는 조건:
   - 어느 관절이든 명령과 실제 위치가 10° 넘게 벌어지면 무언가에 걸린 것으로 보고,
     움직이던 관절을 그 자리에 붙잡은 뒤 원점으로 돌아갈지 묻는다. 걸린 적이 있으면
     종료 코드 1 로 끝난다.
   - 한 제어 주기에 위치가 45° 넘게 뛰면 DM 모터의 ±12.5 rad wrap 이라 곧바로 모터를 끈다.
-  - Ctrl-C 는 그 자리에서 붙잡고 원점으로 돌아갈지 묻는다.
+  - Ctrl-C 는 테스트를 끝낸다. 움직이는 중이면 그 자리에 붙잡고 원점으로 돌아갈지 먼저 묻는다.
 
 키는 Enter 없이 한 글자로 받는다. 관절을 시작하기 전에는 Enter 시작 · s 건너뛰기 ·
 q 끝내기이고, 움직이는 중에도 s 는 그 관절을 멈춰 원점으로 되돌린 뒤 다음 관절로,
@@ -59,6 +59,10 @@ MAX_SPEED_RAD_S = math.radians(30)
 ACCEL_RAD_S2 = math.radians(30)
 PAUSE_AT_TARGET_S = 1.0
 CONTROL_PERIOD_S = 0.005
+# 한 주기에 명령을 옮기는 시간의 상한. 터미널 출력이나 CAN 송수신으로 루프가 멈췄다 풀리면
+# 경과 시간이 길어지는데, 그만큼 명령을 한 번에 옮기면 kp 300 의 어깨가 스냅한다. 이 상한을
+# 넘는 지연은 그만큼 움직임이 느려질 뿐이다(30°/s 에서 한 주기 0.6° 이하).
+MAX_STEP_S = 0.02
 TRACKING_LIMIT_RAD = math.radians(10)
 WRAP_STEP_RAD = math.radians(45)
 # 출발 자세가 URDF 한계를 이만큼 넘게 벗어나면 영점이 어긋났다고 보고 시작하지 않는다.
@@ -291,7 +295,7 @@ class Arm:
         while True:
             now = time.monotonic()
             self.q_cmd[index], velocity = ramp(
-                self.q_cmd[index], goal, velocity, self.speed, now - last)
+                self.q_cmd[index], goal, velocity, self.speed, min(now - last, MAX_STEP_S))
             last = now
             q = self.step()
             worst = max(range(len(q)), key=lambda i: abs(q[i] - self.q_cmd[i]))
@@ -437,10 +441,6 @@ def main(argv=None):
             return 1
 
     oa = can_arm.import_bindings()
-    keys = Keys()
-    arm = Arm(can_arm.open_arm(oa, args.interface), oa, keys)
-    if start_pose(arm, labels, limits) is None:
-        return 1
 
     print()
     print(f'  ── 구동 계획 ({args.interface} · {args.arm}) ──')
@@ -456,7 +456,9 @@ def main(argv=None):
     except KeyboardInterrupt:
         print('\n  취소했습니다. 모터는 켜지 않았습니다.')
         return 0
-    # 표를 보는 동안 팔이 움직였을 수 있다. 처음 읽은 자세로 켜면 그 자세로 끌려간다.
+    # 자세는 모터를 켜기 직전에 읽는다. 표를 보는 동안 팔이 움직였어도 그 전 자세로 끌려가지 않는다.
+    keys = Keys()
+    arm = Arm(can_arm.open_arm(oa, args.interface), oa, keys)
     q_start = start_pose(arm, labels, limits)
     if q_start is None:
         print('  모터는 켜지 않았습니다.')
